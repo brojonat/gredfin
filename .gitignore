@@ -2,4 +2,7 @@
 *__pycache__
 
 # binaries
-gredfin/server/server
+server/server
+client/client
+worker/worker
+cli/cli

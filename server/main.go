@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -6,23 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 
 	grc "github.com/brojonat/gredfin/client"
 	"github.com/brojonat/gredfin/server/dbgen"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-func getConnPool(ctx context.Context, url string) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, url)
-	if err != nil {
-		return nil, fmt.Errorf("unable to connect to database: %v", err)
-	}
-	if err = pool.Ping(ctx); err != nil {
-		return nil, err
-	}
-	return pool, nil
-}
 
 func handleTest(l *slog.Logger, c grc.Client, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -60,17 +48,24 @@ func handlePing(l *slog.Logger, p *pgxpool.Pool) http.HandlerFunc {
 	}
 }
 
-func main() {
-	l := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	c := grc.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
-	db, err := getConnPool(context.Background(), os.Getenv("DATABASE_URL"))
+func getConnPool(ctx context.Context, url string) (*pgxpool.Pool, error) {
+	pool, err := pgxpool.New(ctx, url)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not connect to db: %s\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("unable to connect to database: %v", err)
+	}
+	if err = pool.Ping(ctx); err != nil {
+		return nil, err
+	}
+	return pool, nil
+}
+
+func RunHTTPServer(ctx context.Context, l *slog.Logger, dbHost string, c grc.Client, port string) error {
+	db, err := getConnPool(ctx, dbHost)
+	if err != nil {
+		return fmt.Errorf("could not connect to db: %s", err)
 	}
 	q := dbgen.New(db)
 	setupRoutes(l, c, db, q)
-
-	fmt.Println("listening on :8080...")
-	http.ListenAndServe(":8080", nil)
+	fmt.Printf("listening on %s...", port)
+	return http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
 }
