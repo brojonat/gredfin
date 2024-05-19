@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/brojonat/gredfin/client"
 	"github.com/brojonat/gredfin/server"
 	"github.com/brojonat/gredfin/worker"
@@ -99,22 +101,34 @@ func serve_http(ctx *cli.Context) error {
 
 func run_search_worker(ctx *cli.Context) error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	worker.RunSearchWorker(
+	redfinClient := client.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
+	cfg, err := config.LoadDefaultConfig(ctx.Context)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s3Client := s3.NewFromConfig(cfg)
+	worker.RunWorkerFunc(
 		ctx.Context,
 		logger,
 		ctx.Duration("interval"),
-		ctx.Duration("claim-tasks-older-than"),
+		worker.MakeSearchWorkerFunc(redfinClient, s3Client),
 	)
 	return nil
 }
 
 func run_property_scrape_worker(ctx *cli.Context) error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	worker.RunPropertyWorker(
+	redfinClient := client.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
+	cfg, err := config.LoadDefaultConfig(ctx.Context)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s3Client := s3.NewFromConfig(cfg)
+	worker.RunWorkerFunc(
 		ctx.Context,
 		logger,
 		ctx.Duration("interval"),
-		ctx.Duration("claim-tasks-older-than"),
+		worker.MakePropertyWorkerFunc(redfinClient, s3Client),
 	)
 	return nil
 }

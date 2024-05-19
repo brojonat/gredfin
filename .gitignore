@@ -1,8 +1,7 @@
 *.env.*
 *__pycache__
+.vscode
 
 # binaries
-server/server
-client/client
-worker/worker
-cli/cli
+cli
+!cli/
