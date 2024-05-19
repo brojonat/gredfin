@@ -7,7 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
-	"github.com/brojonat/gredfin/client"
+	"github.com/brojonat/gredfin/redfin"
 )
 
 // RunWorkerFunc is a general purpose entry point for running cancelable
@@ -45,7 +45,7 @@ func NoopWorkerFunc(ctx context.Context, logger *slog.Logger) {
 }
 
 // Default implementation of a Search scrape worker.
-func MakeSearchWorkerFunc(grc client.Client, s3c *s3.Client) func(context.Context, *slog.Logger) {
+func MakeSearchWorkerFunc(grc redfin.Client, s3c *s3.Client) func(context.Context, *slog.Logger) {
 	f := func(ctx context.Context, logger *slog.Logger) {
 		// logger.Info("look at me, I'm a search scraper with dependencies")
 		// values, err := s3c.ListObjectsV2(ctx, &s3.ListObjectsV2Input{Bucket: aws.String("gredfin"), Prefix: aws.String("idk")})
@@ -65,7 +65,7 @@ func MakeSearchWorkerFunc(grc client.Client, s3c *s3.Client) func(context.Contex
 }
 
 // Default implementation of a Property scrape worker.
-func MakePropertyWorkerFunc(grc client.Client, s3c *s3.Client) func(context.Context, *slog.Logger) {
+func MakePropertyWorkerFunc(grc redfin.Client, s3c *s3.Client) func(context.Context, *slog.Logger) {
 	f := func(ctx context.Context, logger *slog.Logger) {
 		// logger.Info("look at me, I'm a property scraper with dependencies")
 		// values, err := s3c.ListObjectsV2(ctx, &s3.ListObjectsV2Input{Bucket: aws.String("gredfin"), Prefix: aws.String("idk")})

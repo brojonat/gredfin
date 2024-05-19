@@ -8,7 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/brojonat/gredfin/client"
+	"github.com/brojonat/gredfin/redfin"
 	"github.com/brojonat/gredfin/server"
 	"github.com/brojonat/gredfin/worker"
 	"github.com/urfave/cli/v2"
@@ -18,7 +18,7 @@ func main() {
 	app := &cli.App{
 		Commands: []*cli.Command{
 			{
-				Name:  "serve-http",
+				Name:  "serve-http-server",
 				Usage: "Run the HTTP server on the specified port.",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
@@ -40,7 +40,7 @@ func main() {
 			},
 			{
 				Name:  "run-search-worker",
-				Usage: "Run a search worker.",
+				Usage: "Run a search scrape worker.",
 				Flags: []cli.Flag{
 					&cli.DurationFlag{
 						Name:    "interval",
@@ -60,7 +60,7 @@ func main() {
 				},
 			},
 			{
-				Name:  "run-property-scrape-worker",
+				Name:  "run-property-worker",
 				Usage: "Run a property scrape worker.",
 				Flags: []cli.Flag{
 					&cli.DurationFlag{
@@ -89,7 +89,7 @@ func main() {
 
 func serve_http(ctx *cli.Context) error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	redfinClient := client.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
+	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
 	return server.RunHTTPServer(
 		ctx.Context,
 		logger,
@@ -101,7 +101,7 @@ func serve_http(ctx *cli.Context) error {
 
 func run_search_worker(ctx *cli.Context) error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	redfinClient := client.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
+	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
 	cfg, err := config.LoadDefaultConfig(ctx.Context)
 	if err != nil {
 		log.Fatal(err)
@@ -118,7 +118,7 @@ func run_search_worker(ctx *cli.Context) error {
 
 func run_property_scrape_worker(ctx *cli.Context) error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	redfinClient := client.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
+	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
 	cfg, err := config.LoadDefaultConfig(ctx.Context)
 	if err != nil {
 		log.Fatal(err)

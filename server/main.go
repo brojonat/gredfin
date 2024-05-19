@@ -7,12 +7,12 @@ import (
 	"log/slog"
 	"net/http"
 
-	grc "github.com/brojonat/gredfin/client"
+	"github.com/brojonat/gredfin/redfin"
 	"github.com/brojonat/gredfin/server/dbgen"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func handleTest(l *slog.Logger, c grc.Client, q *dbgen.Queries) http.HandlerFunc {
+func handleTest(l *slog.Logger, c redfin.Client, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		b, err := c.Search("18 Brandywine St, Burlington, VT 05408", map[string]string{})
 		if err != nil {
@@ -59,7 +59,7 @@ func getConnPool(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-func RunHTTPServer(ctx context.Context, l *slog.Logger, dbHost string, c grc.Client, port string) error {
+func RunHTTPServer(ctx context.Context, l *slog.Logger, dbHost string, c redfin.Client, port string) error {
 	db, err := getConnPool(ctx, dbHost)
 	if err != nil {
 		return fmt.Errorf("could not connect to db: %s", err)

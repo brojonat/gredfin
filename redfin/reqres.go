@@ -1,4 +1,4 @@
-package client
+package redfin
 
 type RedfinResponse struct {
 	Version      int     `json:"version"`
