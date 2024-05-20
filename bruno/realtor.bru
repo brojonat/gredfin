@@ -1,0 +1,15 @@
+meta {
+  name: /realtor
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{ENDPOINT}}/realtor
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{AUTH_TOKEN}}
+}

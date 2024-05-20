@@ -38,8 +38,8 @@ func apiMode(l *slog.Logger, maxBytes int64, origins []string) handlerAdapter {
 			next = setMaxBytesReader(maxBytes)(next)
 			next = setContentType("application/json")(next)
 			handlers.CORS(
-				handlers.AllowedHeaders([]string{"Authorization", "Access-Control-Allow-Origin", "Content-Type"}),
-				handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
+				handlers.AllowedHeaders([]string{"Access-Control-Allow-Origin", "Authorization", "Content-Type"}),
+				handlers.AllowedMethods([]string{"GET", "POST", "DELETE"}),
 				handlers.AllowedOrigins(origins),
 			)(next).ServeHTTP(w, r)
 		}

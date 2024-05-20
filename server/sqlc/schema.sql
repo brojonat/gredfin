@@ -18,7 +18,7 @@ CREATE TABLE search (
 );
 
 CREATE TABLE realtor (
-  realtor_id SERIAL PRIMARY KEY,
+  realtor_id SERIAL,
   realtor_name VARCHAR(64),
   realtor_region VARCHAR(32),
   property_id VARCHAR(32),
