@@ -2,17 +2,30 @@
 SELECT * FROM search
 WHERE search_id = $1 LIMIT 1;
 
+-- name: GetSearchByQuery :one
+SELECT * FROM search
+WHERE query = $1;
+
+-- name: GetNNextSearchScrapeForUpdate :one
+-- Get the next N property entries that have a last_scrape_status in the
+-- supplied slice. Rows are locked for update; callers are expected to set
+-- status rows to PENDING after retrieving rows.
+SELECT * FROM search
+WHERE last_scrape_status = ANY($2::VARCHAR[])
+ORDER BY NOW()::timestamp - last_scrape_status
+LIMIT $1
+FOR UPDATE;
+
 -- name: ListSearches :many
 SELECT * FROM search
 ORDER BY search_id;
 
--- name: CreateSearch :one
+-- name: CreateSearch :exec
 INSERT INTO search (
   search_id, query, last_scrape_ts, last_scrape_status
 ) VALUES (
   $1, $2, $3, $4
-)
-RETURNING *;
+);
 
 -- name: PostSearch :exec
 UPDATE search

@@ -11,13 +11,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createProperty = `-- name: CreateProperty :one
+const createProperty = `-- name: CreateProperty :exec
 INSERT INTO property (
   property_id, listing_id, address, zipcode, state, last_scrape_ts, last_scrape_status
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7
 )
-RETURNING property_id, listing_id, address, zipcode, state, last_scrape_ts, last_scrape_status
 `
 
 type CreatePropertyParams struct {
@@ -30,8 +29,8 @@ type CreatePropertyParams struct {
 	LastScrapeStatus pgtype.Text      `json:"last_scrape_status"`
 }
 
-func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) (Property, error) {
-	row := q.db.QueryRow(ctx, createProperty,
+func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) error {
+	_, err := q.db.Exec(ctx, createProperty,
 		arg.PropertyID,
 		arg.ListingID,
 		arg.Address,
@@ -40,41 +39,31 @@ func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) 
 		arg.LastScrapeTs,
 		arg.LastScrapeStatus,
 	)
-	var i Property
-	err := row.Scan(
-		&i.PropertyID,
-		&i.ListingID,
-		&i.Address,
-		&i.Zipcode,
-		&i.State,
-		&i.LastScrapeTs,
-		&i.LastScrapeStatus,
-	)
-	return i, err
+	return err
 }
 
-const deleteProperty = `-- name: DeleteProperty :exec
+const deletePropertyListing = `-- name: DeletePropertyListing :exec
 DELETE FROM property
 WHERE property_id = $1 AND listing_id = $2
 `
 
-type DeletePropertyParams struct {
+type DeletePropertyListingParams struct {
 	PropertyID string `json:"property_id"`
 	ListingID  string `json:"listing_id"`
 }
 
-func (q *Queries) DeleteProperty(ctx context.Context, arg DeletePropertyParams) error {
-	_, err := q.db.Exec(ctx, deleteProperty, arg.PropertyID, arg.ListingID)
+func (q *Queries) DeletePropertyListing(ctx context.Context, arg DeletePropertyListingParams) error {
+	_, err := q.db.Exec(ctx, deletePropertyListing, arg.PropertyID, arg.ListingID)
 	return err
 }
 
-const deletePropertyByAddr = `-- name: DeletePropertyByAddr :exec
+const deletePropertyListingsByID = `-- name: DeletePropertyListingsByID :exec
 DELETE FROM property
-WHERE address = $1
+WHERE property_id = $1
 `
 
-func (q *Queries) DeletePropertyByAddr(ctx context.Context, address pgtype.Text) error {
-	_, err := q.db.Exec(ctx, deletePropertyByAddr, address)
+func (q *Queries) DeletePropertyListingsByID(ctx context.Context, propertyID string) error {
+	_, err := q.db.Exec(ctx, deletePropertyListingsByID, propertyID)
 	return err
 }
 
@@ -109,13 +98,52 @@ func (q *Queries) GetNNextPropertyScrapeForUpdate(ctx context.Context, arg GetNN
 	return i, err
 }
 
-const getProperty = `-- name: GetProperty :one
+const getPropertiesByID = `-- name: GetPropertiesByID :many
 SELECT property_id, listing_id, address, zipcode, state, last_scrape_ts, last_scrape_status FROM property
-WHERE property_id = $1 LIMIT 1
+WHERE property_id = $1
 `
 
-func (q *Queries) GetProperty(ctx context.Context, propertyID string) (Property, error) {
-	row := q.db.QueryRow(ctx, getProperty, propertyID)
+func (q *Queries) GetPropertiesByID(ctx context.Context, propertyID string) ([]Property, error) {
+	rows, err := q.db.Query(ctx, getPropertiesByID, propertyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Property
+	for rows.Next() {
+		var i Property
+		if err := rows.Scan(
+			&i.PropertyID,
+			&i.ListingID,
+			&i.Address,
+			&i.Zipcode,
+			&i.State,
+			&i.LastScrapeTs,
+			&i.LastScrapeStatus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getProperty = `-- name: GetProperty :one
+SELECT property_id, listing_id, address, zipcode, state, last_scrape_ts, last_scrape_status FROM property
+WHERE property_id = $1 AND listing_id = $2
+LIMIT 1
+`
+
+type GetPropertyParams struct {
+	PropertyID string `json:"property_id"`
+	ListingID  string `json:"listing_id"`
+}
+
+func (q *Queries) GetProperty(ctx context.Context, arg GetPropertyParams) (Property, error) {
+	row := q.db.QueryRow(ctx, getProperty, arg.PropertyID, arg.ListingID)
 	var i Property
 	err := row.Scan(
 		&i.PropertyID,

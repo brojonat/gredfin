@@ -1,6 +1,11 @@
 -- name: GetProperty :one
 SELECT * FROM property
-WHERE property_id = $1 LIMIT 1;
+WHERE property_id = $1 AND listing_id = $2
+LIMIT 1;
+
+-- name: GetPropertiesByID :many
+SELECT * FROM property
+WHERE property_id = $1;
 
 -- name: GetNNextPropertyScrapeForUpdate :one
 -- Get the next N property entries that have a last_scrape_status in the
@@ -16,13 +21,12 @@ FOR UPDATE;
 SELECT * FROM property
 ORDER BY property_id;
 
--- name: CreateProperty :one
+-- name: CreateProperty :exec
 INSERT INTO property (
   property_id, listing_id, address, zipcode, state, last_scrape_ts, last_scrape_status
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7
-)
-RETURNING *;
+);
 
 -- name: PostProperty :exec
 UPDATE property
@@ -39,10 +43,10 @@ UPDATE property
   last_scrape_status = $3
 WHERE property_id = $1 AND listing_id = $2;
 
--- name: DeleteProperty :exec
+-- name: DeletePropertyListing :exec
 DELETE FROM property
 WHERE property_id = $1 AND listing_id = $2;
 
--- name: DeletePropertyByAddr :exec
+-- name: DeletePropertyListingsByID :exec
 DELETE FROM property
-WHERE address = $1;
+WHERE property_id = $1;

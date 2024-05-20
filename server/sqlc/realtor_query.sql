@@ -1,8 +1,8 @@
--- name: GetRealtor :one
+-- name: GetRealtorProperties :many
 SELECT * FROM realtor
-WHERE realtor_id = $1 LIMIT 1;
+WHERE realtor_id = $1;
 
--- name: GetRealtorsByName :many
+-- name: GetRealtorPropertiesByName :many
 SELECT * FROM realtor
 WHERE realtor_name = $1;
 
@@ -10,13 +10,12 @@ WHERE realtor_name = $1;
 SELECT * FROM realtor
 ORDER BY realtor_name;
 
--- name: CreateRealtor :one
+-- name: CreateRealtor :exec
 INSERT INTO realtor (
   realtor_id, realtor_name, realtor_region, property_id, listing_id, list_price
 ) VALUES (
   $1, $2, $3, $4, $5, $6
-)
-RETURNING *;
+);
 
 -- name: PostRealtor :exec
 UPDATE realtor
@@ -26,6 +25,10 @@ UPDATE realtor
   listing_id = $5,
   list_price = $6
 WHERE realtor_id = $1;
+
+-- name: DeleteRealtorListing :exec
+DELETE FROM realtor
+WHERE realtor_id = $1 AND property_id = $2 AND listing_id = $3;
 
 -- name: DeleteRealtor :exec
 DELETE FROM realtor

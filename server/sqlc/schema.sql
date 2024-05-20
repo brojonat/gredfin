@@ -13,7 +13,8 @@ CREATE TABLE search (
   search_id SERIAL PRIMARY KEY,
   query VARCHAR(128),
   last_scrape_ts TIMESTAMP DEFAULT '19700101 00:00:00',
-  last_scrape_status VARCHAR(16)
+  last_scrape_status VARCHAR(16),
+  UNIQUE (query)
 );
 
 CREATE TABLE realtor (

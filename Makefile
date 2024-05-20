@@ -5,7 +5,7 @@ define setup_env
 endef
 
 build-cli:
-	go build -o cli cli/*.go
+	go build -o cmd/cli cmd/*.go
 
 migrate:
 	$(call setup_env, server/.env)

@@ -11,13 +11,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createSearch = `-- name: CreateSearch :one
+const createSearch = `-- name: CreateSearch :exec
 INSERT INTO search (
   search_id, query, last_scrape_ts, last_scrape_status
 ) VALUES (
   $1, $2, $3, $4
 )
-RETURNING search_id, query, last_scrape_ts, last_scrape_status
 `
 
 type CreateSearchParams struct {
@@ -27,21 +26,14 @@ type CreateSearchParams struct {
 	LastScrapeStatus pgtype.Text      `json:"last_scrape_status"`
 }
 
-func (q *Queries) CreateSearch(ctx context.Context, arg CreateSearchParams) (Search, error) {
-	row := q.db.QueryRow(ctx, createSearch,
+func (q *Queries) CreateSearch(ctx context.Context, arg CreateSearchParams) error {
+	_, err := q.db.Exec(ctx, createSearch,
 		arg.SearchID,
 		arg.Query,
 		arg.LastScrapeTs,
 		arg.LastScrapeStatus,
 	)
-	var i Search
-	err := row.Scan(
-		&i.SearchID,
-		&i.Query,
-		&i.LastScrapeTs,
-		&i.LastScrapeStatus,
-	)
-	return i, err
+	return err
 }
 
 const deleteSearch = `-- name: DeleteSearch :exec
@@ -64,6 +56,34 @@ func (q *Queries) DeleteSearchByQuery(ctx context.Context, query pgtype.Text) er
 	return err
 }
 
+const getNNextSearchScrapeForUpdate = `-- name: GetNNextSearchScrapeForUpdate :one
+SELECT search_id, query, last_scrape_ts, last_scrape_status FROM search
+WHERE last_scrape_status = ANY($2::VARCHAR[])
+ORDER BY NOW()::timestamp - last_scrape_status
+LIMIT $1
+FOR UPDATE
+`
+
+type GetNNextSearchScrapeForUpdateParams struct {
+	Limit   int32    `json:"limit"`
+	Column2 []string `json:"column_2"`
+}
+
+// Get the next N property entries that have a last_scrape_status in the
+// supplied slice. Rows are locked for update; callers are expected to set
+// status rows to PENDING after retrieving rows.
+func (q *Queries) GetNNextSearchScrapeForUpdate(ctx context.Context, arg GetNNextSearchScrapeForUpdateParams) (Search, error) {
+	row := q.db.QueryRow(ctx, getNNextSearchScrapeForUpdate, arg.Limit, arg.Column2)
+	var i Search
+	err := row.Scan(
+		&i.SearchID,
+		&i.Query,
+		&i.LastScrapeTs,
+		&i.LastScrapeStatus,
+	)
+	return i, err
+}
+
 const getSearch = `-- name: GetSearch :one
 SELECT search_id, query, last_scrape_ts, last_scrape_status FROM search
 WHERE search_id = $1 LIMIT 1
@@ -71,6 +91,23 @@ WHERE search_id = $1 LIMIT 1
 
 func (q *Queries) GetSearch(ctx context.Context, searchID int32) (Search, error) {
 	row := q.db.QueryRow(ctx, getSearch, searchID)
+	var i Search
+	err := row.Scan(
+		&i.SearchID,
+		&i.Query,
+		&i.LastScrapeTs,
+		&i.LastScrapeStatus,
+	)
+	return i, err
+}
+
+const getSearchByQuery = `-- name: GetSearchByQuery :one
+SELECT search_id, query, last_scrape_ts, last_scrape_status FROM search
+WHERE query = $1
+`
+
+func (q *Queries) GetSearchByQuery(ctx context.Context, query pgtype.Text) (Search, error) {
+	row := q.db.QueryRow(ctx, getSearchByQuery, query)
 	var i Search
 	err := row.Scan(
 		&i.SearchID,
