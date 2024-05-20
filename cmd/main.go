@@ -43,6 +43,18 @@ func main() {
 				Name:  "run-search-worker",
 				Usage: "Run a search scrape worker.",
 				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "server-endpoint",
+						Aliases: []string{"server", "s"},
+						Value:   os.Getenv("SERVER_ENDPOINT"),
+						Usage:   "Server endpoint.",
+					},
+					&cli.StringFlag{
+						Name:    "auth-token",
+						Aliases: []string{"token", "t"},
+						Value:   os.Getenv("AUTH_TOKEN"),
+						Usage:   "Auth token for server requests.",
+					},
 					&cli.DurationFlag{
 						Name:    "interval",
 						Aliases: []string{"i"},
@@ -64,6 +76,18 @@ func main() {
 				Name:  "run-property-worker",
 				Usage: "Run a property scrape worker.",
 				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "server-endpoint",
+						Aliases: []string{"server", "s"},
+						Value:   os.Getenv("SERVER_ENDPOINT"),
+						Usage:   "Server endpoint.",
+					},
+					&cli.StringFlag{
+						Name:    "auth-token",
+						Aliases: []string{"token", "t"},
+						Value:   os.Getenv("AUTH_TOKEN"),
+						Usage:   "Auth token for server requests.",
+					},
 					&cli.DurationFlag{
 						Name:    "interval",
 						Aliases: []string{"i"},
@@ -112,7 +136,11 @@ func run_search_worker(ctx *cli.Context) error {
 		ctx.Context,
 		logger,
 		ctx.Duration("interval"),
-		worker.MakeSearchWorkerFunc(redfinClient, s3Client),
+		worker.MakeSearchWorkerFunc(
+			ctx.String("server-endpoint"),
+			ctx.String("auth-token"),
+			redfinClient, s3Client,
+		),
 	)
 	return nil
 }
@@ -129,7 +157,12 @@ func run_property_scrape_worker(ctx *cli.Context) error {
 		ctx.Context,
 		logger,
 		ctx.Duration("interval"),
-		worker.MakePropertyWorkerFunc(redfinClient, s3Client),
+		worker.MakePropertyWorkerFunc(
+			ctx.String("server-endpoint"),
+			ctx.String("auth-token"),
+			redfinClient,
+			s3Client,
+		),
 	)
 	return nil
 }

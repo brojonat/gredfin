@@ -34,7 +34,7 @@ func RunHTTPServer(
 		return fmt.Errorf("could not connect to db: %s", err)
 	}
 	q := dbgen.New(db)
-	fmt.Printf("listening on %s...", port)
+	fmt.Printf("listening on %s...\n", port)
 	return http.ListenAndServe(
 		fmt.Sprintf(":%s", port),
 		getRootHandler(l, db, q),

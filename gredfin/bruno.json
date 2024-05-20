@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "gredfin",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

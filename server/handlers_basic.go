@@ -39,11 +39,13 @@ func handleIssueToken(l *slog.Logger) http.HandlerFunc {
 		if t == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "must supply authorization header"})
+			return
 		}
 		email := r.URL.Query().Get("email")
 		if email == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "must supply email"})
+			return
 		}
 		if t != getSecretKey() {
 			w.WriteHeader(http.StatusUnauthorized)

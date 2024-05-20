@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -37,49 +38,37 @@ func RunWorkerFunc(
 	}
 }
 
-// no-op worker function for testing
-func NoopWorkerFunc(ctx context.Context, logger *slog.Logger) {
-	logger.Info("look at me, i'm doing search work")
-	time.Sleep(5 * time.Second)
-	logger.Info("done search work")
-}
-
 // Default implementation of a Search scrape worker.
-func MakeSearchWorkerFunc(grc redfin.Client, s3c *s3.Client) func(context.Context, *slog.Logger) {
+func MakeSearchWorkerFunc(endpoint string, authToken string, grc redfin.Client, s3c *s3.Client) func(context.Context, *slog.Logger) {
 	f := func(ctx context.Context, logger *slog.Logger) {
-		// logger.Info("look at me, I'm a search scraper with dependencies")
-		// values, err := s3c.ListObjectsV2(ctx, &s3.ListObjectsV2Input{Bucket: aws.String("gredfin"), Prefix: aws.String("idk")})
-		// if err != nil {
-		// 	logger.Error("error fetching data", "error", err.Error())
-		// 	return
-		// }
-		// data, err := json.Marshal(values.Contents)
-		// if err != nil {
-		// 	logger.Error("error serializing bucket data", "error", err.Error())
-		// 	return
-		// }
-		// logger.Info("got some values", "values", string(data))
-		logger.Info("I'm a search worker!")
+		logger.Info("running search scrape worker")
+		s, err := claimSearch(endpoint, getDefaultHeaders(authToken))
+		if err != nil {
+			logger.Error("error getting search", "error", err.Error())
+			return
+		}
+		logger.Info("got query", "query", s.Query)
 	}
 	return f
 }
 
 // Default implementation of a Property scrape worker.
-func MakePropertyWorkerFunc(grc redfin.Client, s3c *s3.Client) func(context.Context, *slog.Logger) {
+func MakePropertyWorkerFunc(endpoint string, authToken string, grc redfin.Client, s3c *s3.Client) func(context.Context, *slog.Logger) {
 	f := func(ctx context.Context, logger *slog.Logger) {
-		// logger.Info("look at me, I'm a property scraper with dependencies")
-		// values, err := s3c.ListObjectsV2(ctx, &s3.ListObjectsV2Input{Bucket: aws.String("gredfin"), Prefix: aws.String("idk")})
-		// if err != nil {
-		// 	logger.Error("error fetching data", "error", err.Error())
-		// 	return
-		// }
-		// data, err := json.Marshal(values.Contents)
-		// if err != nil {
-		// 	logger.Error("error serializing bucket data", "error", err.Error())
-		// 	return
-		// }
-		// logger.Info("got some values", "values", string(data))
-		logger.Info("I'm a property worker!")
+		logger.Info("running property scrape worker")
+		p, err := claimProperty(endpoint, getDefaultHeaders(authToken))
+		if err != nil {
+			logger.Error("error getting property", "error", err.Error())
+			return
+		}
+		logger.Info("got property", "address", p.Address)
 	}
 	return f
+}
+
+func getDefaultHeaders(authToken string) http.Header {
+	h := http.Header{}
+	h.Add("Authorization", authToken)
+	h.Add("Content-Type", "application/json")
+	return h
 }

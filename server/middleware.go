@@ -93,7 +93,7 @@ func mustAuth() handlerAdapter {
 			kf := func(token *jwt.Token) (interface{}, error) {
 				return []byte(getSecretKey()), nil
 			}
-			token, err := jwt.ParseWithClaims(ts, claims, kf)
+			token, err := jwt.ParseWithClaims(ts, &claims, kf)
 			if err != nil || !token.Valid {
 				// this can happen for all sorts of typical reasons (expired tokens, etc.)
 				// so nothing is logged and the user just gets a generic unauthorized message
