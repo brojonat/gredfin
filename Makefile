@@ -7,6 +7,10 @@ endef
 build-cli:
 	go build -o ./cli cmd/*.go
 
+run-server:
+	$(call setup_env, server/.env)
+	./cli run-http-server -d ${DATABASE_URL}
+
 migrate:
 	$(call setup_env, server/.env)
 	atlas schema apply \

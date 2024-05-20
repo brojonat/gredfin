@@ -28,10 +28,11 @@ func main() {
 						Usage:   "Port to listen on.",
 					},
 					&cli.StringFlag{
-						Name:    "db-host",
-						Aliases: []string{"db", "d"},
-						Value:   os.Getenv("DATABASE_URL"),
-						Usage:   "Database endpoint.",
+						Name:     "db-host",
+						Aliases:  []string{"db", "d"},
+						Value:    os.Getenv("DATABASE_URL"),
+						Usage:    "Database endpoint.",
+						Required: true,
 					},
 				},
 				Action: func(ctx *cli.Context) error {
