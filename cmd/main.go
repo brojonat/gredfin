@@ -18,7 +18,7 @@ func main() {
 	app := &cli.App{
 		Commands: []*cli.Command{
 			{
-				Name:  "serve-http-server",
+				Name:  "run-http-server",
 				Usage: "Run the HTTP server on the specified port.",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
