@@ -22,9 +22,9 @@ ORDER BY search_id;
 
 -- name: CreateSearch :exec
 INSERT INTO search (
-  search_id, query, last_scrape_ts, last_scrape_status
+  query
 ) VALUES (
-  $1, $2, $3, $4
+  $1
 );
 
 -- name: PostSearch :exec

@@ -9,13 +9,14 @@ import (
 )
 
 type Property struct {
-	PropertyID       string           `json:"property_id"`
-	ListingID        string           `json:"listing_id"`
-	Address          pgtype.Text      `json:"address"`
-	Zipcode          pgtype.Text      `json:"zipcode"`
-	State            pgtype.Text      `json:"state"`
-	LastScrapeTs     pgtype.Timestamp `json:"last_scrape_ts"`
-	LastScrapeStatus pgtype.Text      `json:"last_scrape_status"`
+	PropertyID         string           `json:"property_id"`
+	ListingID          string           `json:"listing_id"`
+	Address            pgtype.Text      `json:"address"`
+	Zipcode            pgtype.Text      `json:"zipcode"`
+	State              pgtype.Text      `json:"state"`
+	LastScrapeTs       pgtype.Timestamp `json:"last_scrape_ts"`
+	LastScrapeStatus   pgtype.Text      `json:"last_scrape_status"`
+	LastScrapeChecksum pgtype.Text      `json:"last_scrape_checksum"`
 }
 
 type Realtor struct {

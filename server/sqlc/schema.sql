@@ -5,7 +5,8 @@ CREATE TABLE property (
   zipcode VARCHAR(10),
   state CHAR(2),
   last_scrape_ts TIMESTAMP DEFAULT '19700101 00:00:00',
-  last_scrape_status VARCHAR(16),
+  last_scrape_status VARCHAR(16) DEFAULT 'good',
+  last_scrape_checksum VARCHAR(32) DEFAULT '',
   PRIMARY KEY (property_id, listing_id)
 );
 
@@ -13,7 +14,7 @@ CREATE TABLE search (
   search_id SERIAL PRIMARY KEY,
   query VARCHAR(128),
   last_scrape_ts TIMESTAMP DEFAULT '19700101 00:00:00',
-  last_scrape_status VARCHAR(16),
+  last_scrape_status VARCHAR(16) DEFAULT 'good',
   UNIQUE (query)
 );
 

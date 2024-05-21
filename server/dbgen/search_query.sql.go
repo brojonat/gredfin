@@ -13,26 +13,14 @@ import (
 
 const createSearch = `-- name: CreateSearch :exec
 INSERT INTO search (
-  search_id, query, last_scrape_ts, last_scrape_status
+  query
 ) VALUES (
-  $1, $2, $3, $4
+  $1
 )
 `
 
-type CreateSearchParams struct {
-	SearchID         int32            `json:"search_id"`
-	Query            pgtype.Text      `json:"query"`
-	LastScrapeTs     pgtype.Timestamp `json:"last_scrape_ts"`
-	LastScrapeStatus pgtype.Text      `json:"last_scrape_status"`
-}
-
-func (q *Queries) CreateSearch(ctx context.Context, arg CreateSearchParams) error {
-	_, err := q.db.Exec(ctx, createSearch,
-		arg.SearchID,
-		arg.Query,
-		arg.LastScrapeTs,
-		arg.LastScrapeStatus,
-	)
+func (q *Queries) CreateSearch(ctx context.Context, query pgtype.Text) error {
+	_, err := q.db.Exec(ctx, createSearch, query)
 	return err
 }
 

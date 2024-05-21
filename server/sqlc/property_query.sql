@@ -23,9 +23,9 @@ ORDER BY property_id;
 
 -- name: CreateProperty :exec
 INSERT INTO property (
-  property_id, listing_id, address, zipcode, state, last_scrape_ts, last_scrape_status
+  property_id, listing_id, address, zipcode, state
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7
+  $1, $2, $3, $4, $5
 );
 
 -- name: PostProperty :exec
@@ -34,7 +34,8 @@ UPDATE property
   zipcode = $4,
   state = $5,
   last_scrape_ts = $6,
-  last_scrape_status = $7
+  last_scrape_status = $7,
+  last_scrape_checksum = $8
 WHERE property_id = $1 AND listing_id = $2;
 
 -- name: UpdatePropertyStatus :exec

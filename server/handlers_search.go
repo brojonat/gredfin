@@ -60,7 +60,7 @@ func handleSearchQueryGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 
 func handleSearchQueryPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var p dbgen.CreateSearchParams
+		var p pgtype.Text
 		err := decodeJSONBody(r, &p)
 		if err != nil {
 			var mr *MalformedRequest
