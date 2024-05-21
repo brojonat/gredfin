@@ -41,6 +41,7 @@ func RunWorkerFunc(
 // Default implementation of a Search scrape worker.
 func MakeSearchWorkerFunc(endpoint string, authToken string, grc redfin.Client, s3c *s3.Client) func(context.Context, *slog.Logger) {
 	f := func(ctx context.Context, logger *slog.Logger) {
+		// claim the search query
 		logger.Info("running search scrape worker")
 		s, err := claimSearch(endpoint, getDefaultHeaders(authToken))
 		if err != nil {
@@ -48,6 +49,12 @@ func MakeSearchWorkerFunc(endpoint string, authToken string, grc redfin.Client, 
 			return
 		}
 		logger.Info("got query", "query", s.Query)
+
+		// run query (b is a byte slice representing CSV of search results)
+		b := []byte{}
+
+		// upload results
+		uploadSearchResults(endpoint, getDefaultHeaders(authToken), logger, b)
 	}
 	return f
 }

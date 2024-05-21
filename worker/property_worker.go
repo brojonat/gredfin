@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,4 +39,29 @@ func claimProperty(endpoint string, headers http.Header) (*dbgen.Property, error
 		return nil, err
 	}
 	return &p, nil
+}
+
+func createProperty(endpoint string, h http.Header, c *dbgen.CreatePropertyParams) error {
+	b, err := json.Marshal(c)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(
+		http.MethodPost,
+		fmt.Sprintf("%s/property-query", endpoint),
+		bytes.NewReader(b),
+	)
+	if err != nil {
+		return err
+	}
+	req.Header = h
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
+		return fmt.Errorf(res.Status)
+	}
+	return nil
 }
