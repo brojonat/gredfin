@@ -145,23 +145,19 @@ func getURLSFromQuery(
 	return urls, nil
 }
 
-func propertyIsDocumented(endpoint string, h http.Header, url string) bool {
-	return false
-}
-
-func addPropertyFromURL(endpoint string, h http.Header, l *slog.Logger, grc redfin.Client, url string) error {
-	// FIXME: Only query if not address doesn't exist in our DB; maybe we can
-	// run a different, infrequent worker task that checks addresses in the DB
-	// for additional listings? Or maybe we just check it here?
-	if propertyIsDocumented(endpoint, h, url) {
-		return nil
-	}
+func addPropertyFromURL(
+	endpoint string,
+	h http.Header,
+	grc redfin.Client,
+	url string,
+	delay time.Duration,
+) error {
 	bii, err := grc.InitialInfo(
 		strings.TrimPrefix(url, "https://www.redfin.com"),
 		map[string]string{},
 	)
 	// sleep to avoid smashing redfin's api
-	time.Sleep(1 * time.Second)
+	time.Sleep(delay)
 	if err != nil {
 		return fmt.Errorf("error getting initial_info: %w", err)
 	}

@@ -74,6 +74,7 @@ func MakeSearchWorkerFunc(
 	authToken string,
 	grc redfin.Client,
 	s3c *s3.Client,
+	pqd time.Duration,
 ) func(context.Context, *slog.Logger) {
 	f := func(ctx context.Context, l *slog.Logger) {
 		// claim the search query
@@ -101,7 +102,7 @@ func MakeSearchWorkerFunc(
 		// for each URL, upload the property listing to the DB
 		h := getDefaultServerHeaders(authToken)
 		for _, u := range urls {
-			if err := addPropertyFromURL(endpoint, h, l, grc, u); err != nil {
+			if err := addPropertyFromURL(endpoint, h, grc, u, pqd); err != nil {
 				l.Error(err.Error())
 			}
 		}

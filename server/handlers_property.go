@@ -325,5 +325,5 @@ func getPropertyKey(ctx context.Context, pid, lid int32, q *dbgen.Queries) (stri
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s/%s %s %s", p.URL.String, pid, lid, time.Now().Unix()), nil
+	return fmt.Sprintf("%s/%d %d %d", p.URL.String, pid, lid, time.Now().Unix()), nil
 }

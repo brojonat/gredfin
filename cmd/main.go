@@ -105,6 +105,12 @@ func main() {
 								Value:   24 * time.Hour,
 								Usage:   "Only claim tasks older than this value.",
 							},
+							&cli.DurationFlag{
+								Name:    "property-query-delay",
+								Aliases: []string{"pqd", "d"},
+								Value:   500 * time.Millisecond,
+								Usage:   "Delay between search result property queries.",
+							},
 						},
 						Action: func(ctx *cli.Context) error {
 							return run_search_worker(ctx)
@@ -178,6 +184,10 @@ func run_search_worker(ctx *cli.Context) error {
 		log.Fatal(err)
 	}
 	s3Client := s3.NewFromConfig(cfg)
+	pqd, err := time.ParseDuration(ctx.String("property-query-delay"))
+	if err != nil {
+		log.Fatal(err)
+	}
 	worker.RunWorkerFunc(
 		ctx.Context,
 		logger,
@@ -186,6 +196,7 @@ func run_search_worker(ctx *cli.Context) error {
 			ctx.String("server-endpoint"),
 			ctx.String("auth-token"),
 			redfinClient, s3Client,
+			pqd,
 		),
 	)
 	return nil
