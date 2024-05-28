@@ -1,9 +1,12 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -16,8 +19,18 @@ type defaultJSONResponse struct {
 }
 
 func writeInternalError(l *slog.Logger, w http.ResponseWriter, e error) {
-	l.Error(e.Error())
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:]) // skip [Callers, Infof]
+	r := slog.NewRecord(time.Now(), slog.LevelError, fmt.Sprintf(e.Error()), pcs[0])
+	_ = l.Handler().Handle(context.Background(), r)
+	w.WriteHeader(http.StatusInternalServerError)
 	json.NewEncoder(w).Encode(defaultJSONResponse{Error: "internal error"})
+}
+
+func writeEmptyResultError(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNotFound)
+	resp := defaultJSONResponse{Error: "empty result set"}
+	json.NewEncoder(w).Encode(resp)
 }
 
 // handlePing pings the database

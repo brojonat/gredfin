@@ -1,15 +1,45 @@
 package worker
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/brojonat/gredfin/redfin"
+	"github.com/brojonat/gredfin/server"
 )
+
+func AddSeachQuery(ctx context.Context, l *slog.Logger, endpoint, authToken, q string) error {
+	b, err := json.Marshal(pgtype.Text{String: q, Valid: true})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(
+		http.MethodPost,
+		fmt.Sprintf("%s/search-query", endpoint),
+		bytes.NewReader(b),
+	)
+	if err != nil {
+		return err
+	}
+	req.Header = getDefaultServerHeaders(authToken)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
+		return fmt.Errorf(res.Status)
+	}
+	return nil
+}
 
 // RunWorkerFunc is a general purpose entry point for running cancelable
 // periodic worker functions on some interval. Callers simply supply an interval
@@ -39,43 +69,68 @@ func RunWorkerFunc(
 }
 
 // Default implementation of a Search scrape worker.
-func MakeSearchWorkerFunc(endpoint string, authToken string, grc redfin.Client, s3c *s3.Client) func(context.Context, *slog.Logger) {
-	f := func(ctx context.Context, logger *slog.Logger) {
+func MakeSearchWorkerFunc(
+	endpoint string,
+	authToken string,
+	grc redfin.Client,
+	s3c *s3.Client,
+) func(context.Context, *slog.Logger) {
+	f := func(ctx context.Context, l *slog.Logger) {
 		// claim the search query
-		logger.Info("running search scrape worker")
-		s, err := claimSearch(endpoint, getDefaultHeaders(authToken))
+		l.Info("running search scrape worker loop")
+		s, err := claimSearch(endpoint, getDefaultServerHeaders(authToken))
 		if err != nil {
-			logger.Error("error getting search", "error", err.Error())
+			l.Error("error getting search, exiting", "error", err.Error())
 			return
 		}
-		logger.Info("got query", "query", s.Query)
+		l.Info("claimed query", "query", s.Query.String)
 
-		// run query (b is a byte slice representing CSV of search results)
-		b := []byte{}
+		// run the query and get a list of Redfin URLs
+		urls, err := getURLSFromQuery(
+			l,
+			grc,
+			s.Query.String,
+			getDefaultSearchParams(),
+			getDefaultGISCSVParams(),
+		)
+		if err != nil {
+			l.Error(err.Error())
+			return
+		}
 
-		// upload results
-		uploadSearchResults(endpoint, getDefaultHeaders(authToken), logger, b)
+		// for each URL, upload the property listing to the DB
+		h := getDefaultServerHeaders(authToken)
+		for _, u := range urls {
+			if err := addPropertyFromURL(endpoint, h, l, grc, u); err != nil {
+				l.Error(err.Error())
+			}
+		}
+
+		err = markSearchStatus(endpoint, getDefaultServerHeaders(authToken), s, server.ScrapeStatusGood)
+		if err != nil {
+			l.Error(err.Error())
+			return
+		}
 	}
 	return f
 }
 
 // Default implementation of a Property scrape worker.
-func MakePropertyWorkerFunc(endpoint string, authToken string, grc redfin.Client, s3c *s3.Client) func(context.Context, *slog.Logger) {
-	f := func(ctx context.Context, logger *slog.Logger) {
-		logger.Info("running property scrape worker")
-		p, err := claimProperty(endpoint, getDefaultHeaders(authToken))
+func MakePropertyWorkerFunc(
+	endpoint string,
+	authToken string,
+	grc redfin.Client,
+	s3c *s3.Client,
+) func(context.Context, *slog.Logger) {
+	f := func(ctx context.Context, l *slog.Logger) {
+		l.Info("running property scrape worker")
+		p, err := claimProperty(endpoint, getDefaultServerHeaders(authToken))
 		if err != nil {
-			logger.Error("error getting property", "error", err.Error())
+			l.Error("error getting property", "error", err.Error())
 			return
 		}
-		logger.Info("got property", "address", p.Address)
+		l.Info("got property", "url", p.URL.String)
+		// pull from redfin and upload to cloud
 	}
 	return f
-}
-
-func getDefaultHeaders(authToken string) http.Header {
-	h := http.Header{}
-	h.Add("Authorization", authToken)
-	h.Add("Content-Type", "application/json")
-	return h
 }

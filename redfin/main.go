@@ -13,6 +13,7 @@ type Client interface {
 
 	// search
 	Search(query string, params map[string]string) ([]byte, error)
+	GISCSV(params map[string]string) ([]byte, error)
 
 	// property id requests
 	BelowTheFold(propertyID string, params map[string]string) ([]byte, error)
@@ -82,11 +83,12 @@ func (c *client) doRequest(url string, params map[string]string) ([]byte, error)
 		return nil, err
 	}
 	defer res.Body.Close()
+	// possibly handle gzip encoding IF the server returns this for the gis query
 	b, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
-	// the responses are prefixed with {}&& before valid JSON
+	// the responses are prefixed with {}& before valid JSON
 	return b[4:], nil
 }
 
@@ -111,6 +113,10 @@ func (c *client) Search(query string, params map[string]string) ([]byte, error) 
 	params["location"] = query
 	params["v"] = "2"
 	return c.doRequest("do/location-autocomplete", params)
+}
+
+func (c *client) GISCSV(params map[string]string) ([]byte, error) {
+	return c.doRequest("api/gis-csv", params)
 }
 
 // property id requests

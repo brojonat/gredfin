@@ -12,7 +12,7 @@ WHERE query = $1;
 -- status rows to PENDING after retrieving rows.
 SELECT * FROM search
 WHERE last_scrape_status = ANY($2::VARCHAR[])
-ORDER BY NOW()::timestamp - last_scrape_status
+ORDER BY NOW()::timestamp - last_scrape_ts
 LIMIT $1
 FOR UPDATE;
 

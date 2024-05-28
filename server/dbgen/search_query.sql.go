@@ -47,7 +47,7 @@ func (q *Queries) DeleteSearchByQuery(ctx context.Context, query pgtype.Text) er
 const getNNextSearchScrapeForUpdate = `-- name: GetNNextSearchScrapeForUpdate :one
 SELECT search_id, query, last_scrape_ts, last_scrape_status FROM search
 WHERE last_scrape_status = ANY($2::VARCHAR[])
-ORDER BY NOW()::timestamp - last_scrape_status
+ORDER BY NOW()::timestamp - last_scrape_ts
 LIMIT $1
 FOR UPDATE
 `
@@ -148,7 +148,7 @@ type PostSearchParams struct {
 	SearchID         int32            `json:"search_id"`
 	Query            pgtype.Text      `json:"query"`
 	LastScrapeTs     pgtype.Timestamp `json:"last_scrape_ts"`
-	LastScrapeStatus pgtype.Text      `json:"last_scrape_status"`
+	LastScrapeStatus string           `json:"last_scrape_status"`
 }
 
 func (q *Queries) PostSearch(ctx context.Context, arg PostSearchParams) error {
@@ -169,8 +169,8 @@ WHERE search_id = $1
 `
 
 type UpdateSearchStatusParams struct {
-	SearchID         int32       `json:"search_id"`
-	LastScrapeStatus pgtype.Text `json:"last_scrape_status"`
+	SearchID         int32  `json:"search_id"`
+	LastScrapeStatus string `json:"last_scrape_status"`
 }
 
 func (q *Queries) UpdateSearchStatus(ctx context.Context, arg UpdateSearchStatusParams) error {

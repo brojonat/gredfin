@@ -12,7 +12,7 @@ ORDER BY realtor_name;
 
 -- name: CreateRealtor :exec
 INSERT INTO realtor (
-  realtor_id, realtor_name, realtor_region, property_id, listing_id, list_price
+  realtor_id, realtor_name, realtor_company, property_id, listing_id, list_price
 ) VALUES (
   $1, $2, $3, $4, $5, $6
 );
@@ -20,7 +20,7 @@ INSERT INTO realtor (
 -- name: PostRealtor :exec
 UPDATE realtor
   SET realtor_name = $2,
-  realtor_region = $3,
+  realtor_company = $3,
   property_id = $4,
   listing_id = $5,
   list_price = $6

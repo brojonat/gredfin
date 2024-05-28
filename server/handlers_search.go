@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/brojonat/gredfin/server/dbgen"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -20,6 +21,10 @@ func handleSearchQueryGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		// no identifier supplied, return listing
 		if search_id == "" && search_query == "" {
 			ss, err := q.ListSearches(r.Context())
+			if err == pgx.ErrNoRows {
+				writeEmptyResultError(w)
+				return
+			}
 			if err != nil {
 				writeInternalError(l, w, err)
 				return
@@ -36,6 +41,10 @@ func handleSearchQueryGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 				return
 			}
 			s, err := q.GetSearch(r.Context(), int32(sid))
+			if err == pgx.ErrNoRows {
+				writeEmptyResultError(w)
+				return
+			}
 			if err != nil {
 				writeInternalError(l, w, err)
 				return
@@ -46,7 +55,11 @@ func handleSearchQueryGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 
 		// search_query specified, return that search
 		if search_query != "" {
-			s, err := q.GetSearchByQuery(r.Context(), pgtype.Text{String: search_query})
+			s, err := q.GetSearchByQuery(r.Context(), pgtype.Text{String: search_query, Valid: true})
+			if err == pgx.ErrNoRows {
+				writeEmptyResultError(w)
+				return
+			}
 			if err != nil {
 				writeInternalError(l, w, err)
 				return
@@ -96,7 +109,7 @@ func handleSearchQueryDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc 
 
 		// search_query specified, delete that search
 		if search_query != "" {
-			err := q.DeleteSearchByQuery(r.Context(), pgtype.Text{String: search_query})
+			err := q.DeleteSearchByQuery(r.Context(), pgtype.Text{String: search_query, Valid: true})
 			if err != nil {
 				writeInternalError(l, w, err)
 				return
@@ -133,19 +146,27 @@ func handleSearchQueryClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Querie
 		s, err := q.GetNNextSearchScrapeForUpdate(
 			r.Context(),
 			dbgen.GetNNextSearchScrapeForUpdateParams{
-				Limit: 1, Column2: []string{scrapeStatusGood}},
+				Limit: 1, Column2: []string{ScrapeStatusGood}},
+		)
+		if err == pgx.ErrNoRows {
+			writeEmptyResultError(w)
+			return
+		}
+		if err != nil {
+			writeInternalError(l, w, err)
+			return
+		}
+		err = q.UpdateSearchStatus(
+			r.Context(),
+			dbgen.UpdateSearchStatusParams{
+				SearchID:         s.SearchID,
+				LastScrapeStatus: ScrapeStatusPending,
+			},
 		)
 		if err != nil {
 			writeInternalError(l, w, err)
 			return
 		}
-		q.UpdateSearchStatus(
-			r.Context(),
-			dbgen.UpdateSearchStatusParams{
-				SearchID:         s.SearchID,
-				LastScrapeStatus: pgtype.Text{String: scrapeStatusPending},
-			},
-		)
 		tx.Commit(r.Context())
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(s)
@@ -157,9 +178,9 @@ func handleSearchQuerySetStatus(l *slog.Logger, q *dbgen.Queries) http.HandlerFu
 		search_id := r.URL.Query().Get("search_id")
 		status := r.URL.Query().Get("status")
 
-		if search_id == "" || status == "" {
+		if search_id == "" || status == "" || !isValidStatus(status) {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "must specify search_id and status"})
+			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "must specify search_id and valid status"})
 			return
 		}
 
@@ -174,7 +195,7 @@ func handleSearchQuerySetStatus(l *slog.Logger, q *dbgen.Queries) http.HandlerFu
 			r.Context(),
 			dbgen.UpdateSearchStatusParams{
 				SearchID:         int32(sid),
-				LastScrapeStatus: pgtype.Text{String: status},
+				LastScrapeStatus: status,
 			},
 		)
 		if err != nil {

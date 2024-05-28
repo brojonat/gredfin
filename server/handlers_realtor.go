@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/brojonat/gredfin/server/dbgen"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -19,6 +20,10 @@ func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		// no identifiers, return whole listing
 		if realtor_id == "" && realtor_name == "" {
 			rs, err := q.ListRealtors(r.Context())
+			if err == pgx.ErrNoRows {
+				writeEmptyResultError(w)
+				return
+			}
 			if err != nil {
 				writeInternalError(l, w, err)
 				return
@@ -36,6 +41,10 @@ func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 				return
 			}
 			rs, err := q.GetRealtorProperties(r.Context(), int32(id))
+			if err == pgx.ErrNoRows {
+				writeEmptyResultError(w)
+				return
+			}
 			if err != nil {
 				writeInternalError(l, w, err)
 				return
@@ -48,7 +57,11 @@ func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		// realtor_name specified, return realtor entries under that name
 		// NOTE: there may be multiple realtors with the same name!
 		if realtor_name != "" {
-			rs, err := q.GetRealtorPropertiesByName(r.Context(), pgtype.Text{String: realtor_name})
+			rs, err := q.GetRealtorPropertiesByName(r.Context(), pgtype.Text{String: realtor_name, Valid: true})
+			if err == pgx.ErrNoRows {
+				writeEmptyResultError(w)
+				return
+			}
 			if err != nil {
 				writeInternalError(l, w, err)
 				return
@@ -94,11 +107,11 @@ func handleRealtorDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for realtor_id"})
 			return
 		}
-		property_id := r.URL.Query().Get("property_id")
-		listing_id := r.URL.Query().Get("listing_id")
+		propertyID := r.URL.Query().Get("property_id")
+		listingID := r.URL.Query().Get("listing_id")
 
 		// delete all entries for this realtor
-		if property_id != "" && listing_id == "" {
+		if propertyID != "" && listingID == "" {
 			err := q.DeleteRealtor(r.Context(), int32(rid))
 			if err != nil {
 				writeInternalError(l, w, err)
@@ -110,14 +123,26 @@ func handleRealtorDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		}
 
 		// bad request
-		if property_id == "" || listing_id == "" {
+		if propertyID == "" || listingID == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "must supply property_id and listing_id"})
 			return
 		}
 
 		// delete single entry
-		err = q.DeletePropertyListing(r.Context(), dbgen.DeletePropertyListingParams{PropertyID: property_id, ListingID: listing_id})
+		pid, err := strconv.Atoi(propertyID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for property_id"})
+			return
+		}
+		lid, err := strconv.Atoi(listingID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for listing_id"})
+			return
+		}
+		err = q.DeletePropertyListing(r.Context(), dbgen.DeletePropertyListingParams{PropertyID: int32(pid), ListingID: int32(lid)})
 		if err != nil {
 			writeInternalError(l, w, err)
 			return

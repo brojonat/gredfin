@@ -5,32 +5,31 @@
 package dbgen
 
 import (
+	jsonb "github.com/brojonat/gredfin/server/dbgen/jsonb"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Property struct {
-	PropertyID         string           `json:"property_id"`
-	ListingID          string           `json:"listing_id"`
-	Address            pgtype.Text      `json:"address"`
-	Zipcode            pgtype.Text      `json:"zipcode"`
-	State              pgtype.Text      `json:"state"`
-	LastScrapeTs       pgtype.Timestamp `json:"last_scrape_ts"`
-	LastScrapeStatus   pgtype.Text      `json:"last_scrape_status"`
-	LastScrapeChecksum pgtype.Text      `json:"last_scrape_checksum"`
+	PropertyID          int32                        `json:"property_id"`
+	ListingID           int32                        `json:"listing_id"`
+	URL                 pgtype.Text                  `json:"url"`
+	LastScrapeTs        pgtype.Timestamp             `json:"last_scrape_ts"`
+	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
+	LastScrapeChecksums jsonb.PropertyScrapeMetadata `json:"last_scrape_checksums"`
 }
 
 type Realtor struct {
-	RealtorID     int32       `json:"realtor_id"`
-	RealtorName   pgtype.Text `json:"realtor_name"`
-	RealtorRegion pgtype.Text `json:"realtor_region"`
-	PropertyID    string      `json:"property_id"`
-	ListingID     string      `json:"listing_id"`
-	ListPrice     pgtype.Int4 `json:"list_price"`
+	RealtorID      int32       `json:"realtor_id"`
+	RealtorName    pgtype.Text `json:"realtor_name"`
+	RealtorCompany pgtype.Text `json:"realtor_company"`
+	PropertyID     int32       `json:"property_id"`
+	ListingID      int32       `json:"listing_id"`
+	ListPrice      pgtype.Int4 `json:"list_price"`
 }
 
 type Search struct {
 	SearchID         int32            `json:"search_id"`
 	Query            pgtype.Text      `json:"query"`
 	LastScrapeTs     pgtype.Timestamp `json:"last_scrape_ts"`
-	LastScrapeStatus pgtype.Text      `json:"last_scrape_status"`
+	LastScrapeStatus string           `json:"last_scrape_status"`
 }

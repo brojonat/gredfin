@@ -1,15 +1,29 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"strconv"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/brojonat/gredfin/server/dbgen"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+type PropertyScrapeMetadata struct {
+	InitialInfoHash string `json:"initial_info_hash"`
+	MLSHash         string `json:"mls_hash"`
+	AVMHash         string `json:"AVMHash"`
+}
 
 func handlePropertyQueryGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -19,6 +33,10 @@ func handlePropertyQueryGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		// no identifier, list properties
 		if propertyID == "" && listingID == "" {
 			props, err := q.ListProperties(r.Context())
+			if err == pgx.ErrNoRows {
+				writeEmptyResultError(w)
+				return
+			}
 			if err != nil {
 				writeInternalError(l, w, err)
 				return
@@ -37,7 +55,17 @@ func handlePropertyQueryGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 
 		// no listingID, return a listing of properties
 		if listingID == "" {
-			props, err := q.GetPropertiesByID(r.Context(), propertyID)
+			pid, err := strconv.Atoi(propertyID)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for property_id"})
+				return
+			}
+			props, err := q.GetPropertiesByID(r.Context(), int32(pid))
+			if err == pgx.ErrNoRows {
+				writeEmptyResultError(w)
+				return
+			}
 			if err != nil {
 				writeInternalError(l, w, err)
 				return
@@ -48,7 +76,23 @@ func handlePropertyQueryGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		}
 
 		// return single entry
-		prop, err := q.GetProperty(r.Context(), dbgen.GetPropertyParams{PropertyID: propertyID, ListingID: listingID})
+		pid, err := strconv.Atoi(propertyID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for property_id"})
+			return
+		}
+		lid, err := strconv.Atoi(listingID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for listing_id"})
+			return
+		}
+		prop, err := q.GetProperty(r.Context(), dbgen.GetPropertyParams{PropertyID: int32(pid), ListingID: int32(lid)})
+		if err == pgx.ErrNoRows {
+			writeEmptyResultError(w)
+			return
+		}
 		if err != nil {
 			writeInternalError(l, w, err)
 			return
@@ -95,7 +139,13 @@ func handlePropertyQueryDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFun
 
 		// no listingID, delete all property entries under the ID
 		if listingID == "" {
-			err := q.DeletePropertyListingsByID(r.Context(), propertyID)
+			pid, err := strconv.Atoi(propertyID)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for property_id"})
+				return
+			}
+			err = q.DeletePropertyListingsByID(r.Context(), int32(pid))
 			if err != nil {
 				writeInternalError(l, w, err)
 				return
@@ -106,11 +156,23 @@ func handlePropertyQueryDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFun
 		}
 
 		// delete property listing
-		err := q.DeletePropertyListing(
+		pid, err := strconv.Atoi(propertyID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for property_id"})
+			return
+		}
+		lid, err := strconv.Atoi(listingID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for listing_id"})
+			return
+		}
+		err = q.DeletePropertyListing(
 			r.Context(),
 			dbgen.DeletePropertyListingParams{
-				PropertyID: propertyID,
-				ListingID:  listingID,
+				PropertyID: int32(pid),
+				ListingID:  int32(lid),
 			},
 		)
 		if err != nil {
@@ -134,8 +196,12 @@ func handlePropertyQueryClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Quer
 		prop, err := q.GetNNextPropertyScrapeForUpdate(
 			r.Context(),
 			dbgen.GetNNextPropertyScrapeForUpdateParams{
-				Limit: 1, Column2: []string{scrapeStatusGood}},
+				Limit: 1, Column2: []string{ScrapeStatusGood}},
 		)
+		if err == pgx.ErrNoRows {
+			writeEmptyResultError(w)
+			return
+		}
 		if err != nil {
 			writeInternalError(l, w, err)
 			return
@@ -145,7 +211,7 @@ func handlePropertyQueryClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Quer
 			dbgen.UpdatePropertyStatusParams{
 				PropertyID:       prop.PropertyID,
 				ListingID:        prop.ListingID,
-				LastScrapeStatus: pgtype.Text{String: scrapeStatusPending},
+				LastScrapeStatus: pgtype.Text{String: ScrapeStatusPending, Valid: true},
 			},
 		)
 		tx.Commit(r.Context())
@@ -156,22 +222,35 @@ func handlePropertyQueryClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Quer
 
 func handlePropertySetStatus(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		property_id := r.URL.Query().Get("property_id")
-		listing_id := r.URL.Query().Get("listing_id")
+		propertyID := r.URL.Query().Get("property_id")
+		listingID := r.URL.Query().Get("listing_id")
 		status := r.URL.Query().Get("status")
 
-		if property_id == "" || listing_id == "" || status == "" {
+		if propertyID == "" || listingID == "" || status == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "must specify property_id, listing_id, and status"})
 			return
 		}
 
-		err := q.UpdatePropertyStatus(
+		pid, err := strconv.Atoi(propertyID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for property_id"})
+			return
+		}
+		lid, err := strconv.Atoi(listingID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for listing_id"})
+			return
+		}
+
+		err = q.UpdatePropertyStatus(
 			r.Context(),
 			dbgen.UpdatePropertyStatusParams{
-				PropertyID:       property_id,
-				ListingID:        listing_id,
-				LastScrapeStatus: pgtype.Text{String: status},
+				PropertyID:       int32(pid),
+				ListingID:        int32(lid),
+				LastScrapeStatus: pgtype.Text{String: status, Valid: true},
 			},
 		)
 		if err != nil {
@@ -181,4 +260,70 @@ func handlePropertySetStatus(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc 
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(defaultJSONResponse{Message: "ok"})
 	}
+}
+
+func handleGetPresignedPutURL(l *slog.Logger, s3c *s3.Client, q *dbgen.Queries) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		propertyID := r.URL.Query().Get("property_id")
+		listingID := r.URL.Query().Get("listing_id")
+		if propertyID == "" || listingID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "must supply property_id and listing_id"})
+			return
+		}
+		bucket, err := getPropertyBucket()
+		if err != nil {
+			writeInternalError(l, w, err)
+			return
+		}
+		pid, err := strconv.Atoi(propertyID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "invalid value for property_id"})
+			return
+		}
+		lid, err := strconv.Atoi(listingID)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "invalid value for listing_id"})
+			return
+		}
+		key, err := getPropertyKey(r.Context(), int32(pid), int32(lid), q)
+		if err != nil {
+			writeInternalError(l, w, err)
+			return
+		}
+		ps := s3.NewPresignClient(s3c)
+		presignedPutRequest, err := ps.PresignPutObject(
+			r.Context(),
+			&s3.PutObjectInput{
+				Bucket: aws.String(bucket),
+				Key:    aws.String(key),
+			},
+			func(opts *s3.PresignOptions) {
+				opts.Expires = time.Duration(600 * int64(time.Second))
+			})
+		if err != nil {
+			writeInternalError(l, w, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(defaultJSONResponse{Message: presignedPutRequest.URL})
+	}
+}
+
+func getPropertyBucket() (string, error) {
+	b := os.Getenv("S3_PROPERTY_BUCKET")
+	if b == "" {
+		return "", fmt.Errorf("s3 property bucket not set")
+	}
+	return b, nil
+}
+
+func getPropertyKey(ctx context.Context, pid, lid int32, q *dbgen.Queries) (string, error) {
+	p, err := q.GetProperty(ctx, dbgen.GetPropertyParams{PropertyID: pid, ListingID: lid})
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/%s %s %s", p.URL.String, pid, lid, time.Now().Unix()), nil
 }

@@ -12,3 +12,11 @@ sql:
         out: "dbgen"
         sql_package: "pgx/v5"
         emit_json_tags: true
+        rename:
+          url: "URL"
+        overrides:
+          - column: "property.last_scrape_checksums"
+            go_type:
+              import: "github.com/brojonat/gredfin/server/dbgen/jsonb"
+              package: "jsonb"
+              type: "PropertyScrapeMetadata"

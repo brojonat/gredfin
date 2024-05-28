@@ -4,11 +4,17 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/brojonat/gredfin/server/dbgen"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func getRootHandler(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.Handler {
+func getRootHandler(
+	l *slog.Logger,
+	p *pgxpool.Pool,
+	q *dbgen.Queries,
+	s3 *s3.Client,
+) http.Handler {
 	mux := http.NewServeMux()
 	allowedOrigins := []string{}
 	maxBytes := int64(1048576)
@@ -94,6 +100,11 @@ func getRootHandler(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.Hand
 	))
 	mux.HandleFunc("POST /property-query/set-status", adaptHandler(
 		handlePropertySetStatus(l, q),
+		apiMode(l, maxBytes, allowedOrigins),
+		mustAuth(),
+	))
+	mux.HandleFunc("POST /property-query/get-presigned-put-url", adaptHandler(
+		handleGetPresignedPutURL(l, s3, q),
 		apiMode(l, maxBytes, allowedOrigins),
 		mustAuth(),
 	))

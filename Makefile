@@ -16,14 +16,14 @@ migrate:
 
 run-http-server:
 	$(call setup_env, server/.env)
-	./cli run-http-server -d ${DATABASE_URL}
+	./cli run http-server -d ${DATABASE_URL}
 
 run-search-worker:
 	$(call setup_env, worker/.env)
-	./cli run-search-worker --server-endpoint ${SERVER_ENDPOINT} --auth-token ${AUTH_TOKEN} -i 5s
+	./cli run search-worker --server-endpoint ${SERVER_ENDPOINT} --auth-token ${AUTH_TOKEN} -i 5s
 
 run-property-worker:
 	$(call setup_env, worker/.env)
-	./cli run-property-worker --server-endpoint ${SERVER_ENDPOINT} --auth-token ${AUTH_TOKEN} -i 5s
+	./cli run property-worker --server-endpoint ${SERVER_ENDPOINT} --auth-token ${AUTH_TOKEN} -i 5s
 
 

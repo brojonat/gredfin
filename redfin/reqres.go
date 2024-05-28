@@ -1,12 +1,19 @@
 package redfin
 
+import "encoding/json"
+
 type RedfinResponse struct {
-	Version      int     `json:"version"`
-	ErrorMessage string  `json:"errorMessage"`
-	ResultCode   int     `json:"resultCode"`
-	Payload      Payload `json:"payload"`
+	Version      int             `json:"version"`
+	ErrorMessage string          `json:"errorMessage"`
+	ResultCode   int             `json:"resultCode"`
+	Payload      json.RawMessage `json:"payload"`
 }
-type Payload struct {
+type InitialInfoPayload struct {
+	ResponseCode int `json:"responseCode"`
+	ListingID    int `json:"listingId"`
+	PropertyID   int `json:"propertyId"`
+}
+type SearchPayload struct {
 	Sections         []Sections   `json:"sections"`
 	ExactMatch       ExactMatch   `json:"exactMatch"`
 	ExtraResults     ExtraResults `json:"extraResults"`

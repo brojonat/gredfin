@@ -13,7 +13,7 @@ WHERE property_id = $1;
 -- status rows to PENDING after retrieving rows.
 SELECT * FROM property
 WHERE last_scrape_status = ANY($2::VARCHAR[])
-ORDER BY NOW()::timestamp - last_scrape_status
+ORDER BY NOW()::timestamp - last_scrape_ts
 LIMIT $1
 FOR UPDATE;
 
@@ -23,19 +23,17 @@ ORDER BY property_id;
 
 -- name: CreateProperty :exec
 INSERT INTO property (
-  property_id, listing_id, address, zipcode, state
+  property_id, listing_id, url
 ) VALUES (
-  $1, $2, $3, $4, $5
+  $1, $2, $3
 );
 
 -- name: PostProperty :exec
 UPDATE property
-  SET address = $3,
-  zipcode = $4,
-  state = $5,
-  last_scrape_ts = $6,
-  last_scrape_status = $7,
-  last_scrape_checksum = $8
+  SET url = $3,
+  last_scrape_ts = $4,
+  last_scrape_status = $5,
+  last_scrape_checksums = $6
 WHERE property_id = $1 AND listing_id = $2;
 
 -- name: UpdatePropertyStatus :exec

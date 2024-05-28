@@ -4,6 +4,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -18,91 +19,130 @@ func main() {
 	app := &cli.App{
 		Commands: []*cli.Command{
 			{
-				Name:  "run-http-server",
-				Usage: "Run the HTTP server on the specified port.",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "listen-port",
-						Aliases: []string{"port", "p"},
-						Value:   "8080",
-						Usage:   "Port to listen on.",
+				Name:  "admin",
+				Usage: "Commands for performing administrative tasks.",
+				Subcommands: []*cli.Command{
+					{
+						Name:  "add-search-query",
+						Usage: "Add a search query that search workers will run.",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:    "server-endpoint",
+								Aliases: []string{"server", "s"},
+								Value:   os.Getenv("SERVER_ENDPOINT"),
+								Usage:   "Server endpoint.",
+							},
+							&cli.StringFlag{
+								Name:    "auth-token",
+								Aliases: []string{"token", "t"},
+								Value:   os.Getenv("AUTH_TOKEN"),
+								Usage:   "Auth token for server requests.",
+							},
+							&cli.StringFlag{
+								Name:     "query",
+								Aliases:  []string{"q"},
+								Usage:    "Redfin search query (this should just be a zipcode).",
+								Required: true,
+							},
+						},
+						Action: func(ctx *cli.Context) error {
+							return add_search_query(ctx)
+						},
 					},
-					&cli.StringFlag{
-						Name:     "db-host",
-						Aliases:  []string{"db", "d"},
-						Value:    os.Getenv("DATABASE_URL"),
-						Usage:    "Database endpoint.",
-						Required: true,
-					},
-				},
-				Action: func(ctx *cli.Context) error {
-					return serve_http(ctx)
 				},
 			},
 			{
-				Name:  "run-search-worker",
-				Usage: "Run a search scrape worker.",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "server-endpoint",
-						Aliases: []string{"server", "s"},
-						Value:   os.Getenv("SERVER_ENDPOINT"),
-						Usage:   "Server endpoint.",
+				Name:  "run",
+				Usage: "Commands for running various components (server, workers, etc.)",
+				Subcommands: []*cli.Command{
+					{
+						Name:  "http-server",
+						Usage: "Run the HTTP server on the specified port.",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:    "listen-port",
+								Aliases: []string{"port", "p"},
+								Value:   "8080",
+								Usage:   "Port to listen on.",
+							},
+							&cli.StringFlag{
+								Name:     "db-host",
+								Aliases:  []string{"db", "d"},
+								Value:    os.Getenv("DATABASE_URL"),
+								Usage:    "Database endpoint.",
+								Required: true,
+							},
+						},
+						Action: func(ctx *cli.Context) error {
+							return serve_http(ctx)
+						},
 					},
-					&cli.StringFlag{
-						Name:    "auth-token",
-						Aliases: []string{"token", "t"},
-						Value:   os.Getenv("AUTH_TOKEN"),
-						Usage:   "Auth token for server requests.",
+					{
+						Name:  "search-worker",
+						Usage: "Run a search scrape worker.",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:    "server-endpoint",
+								Aliases: []string{"server", "s"},
+								Value:   os.Getenv("SERVER_ENDPOINT"),
+								Usage:   "Server endpoint.",
+							},
+							&cli.StringFlag{
+								Name:    "auth-token",
+								Aliases: []string{"token", "t"},
+								Value:   os.Getenv("AUTH_TOKEN"),
+								Usage:   "Auth token for server requests.",
+							},
+							&cli.DurationFlag{
+								Name:    "interval",
+								Aliases: []string{"i"},
+								Value:   time.Hour,
+								Usage:   "Minimum interval between running tasks.",
+							},
+							&cli.DurationFlag{
+								Name:    "claim-tasks-older-than",
+								Aliases: []string{"older", "o"},
+								Value:   24 * time.Hour,
+								Usage:   "Only claim tasks older than this value.",
+							},
+						},
+						Action: func(ctx *cli.Context) error {
+							return run_search_worker(ctx)
+						},
 					},
-					&cli.DurationFlag{
-						Name:    "interval",
-						Aliases: []string{"i"},
-						Value:   time.Hour,
-						Usage:   "Minimum interval between running tasks.",
+					{
+						Name:  "property-worker",
+						Usage: "Run a property scrape worker.",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:    "server-endpoint",
+								Aliases: []string{"server", "s"},
+								Value:   os.Getenv("SERVER_ENDPOINT"),
+								Usage:   "Server endpoint.",
+							},
+							&cli.StringFlag{
+								Name:    "auth-token",
+								Aliases: []string{"token", "t"},
+								Value:   os.Getenv("AUTH_TOKEN"),
+								Usage:   "Auth token for server requests.",
+							},
+							&cli.DurationFlag{
+								Name:    "interval",
+								Aliases: []string{"i"},
+								Value:   time.Second,
+								Usage:   "Minimum interval between running tasks.",
+							},
+							&cli.DurationFlag{
+								Name:    "claim-tasks-older-than",
+								Aliases: []string{"older", "o"},
+								Value:   7 * 24 * time.Hour,
+								Usage:   "Only claim tasks older than this value.",
+							},
+						},
+						Action: func(ctx *cli.Context) error {
+							return run_property_scrape_worker(ctx)
+						},
 					},
-					&cli.DurationFlag{
-						Name:    "claim-tasks-older-than",
-						Aliases: []string{"older", "o"},
-						Value:   24 * time.Hour,
-						Usage:   "Only claim tasks older than this value.",
-					},
-				},
-				Action: func(ctx *cli.Context) error {
-					return run_search_worker(ctx)
-				},
-			},
-			{
-				Name:  "run-property-worker",
-				Usage: "Run a property scrape worker.",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "server-endpoint",
-						Aliases: []string{"server", "s"},
-						Value:   os.Getenv("SERVER_ENDPOINT"),
-						Usage:   "Server endpoint.",
-					},
-					&cli.StringFlag{
-						Name:    "auth-token",
-						Aliases: []string{"token", "t"},
-						Value:   os.Getenv("AUTH_TOKEN"),
-						Usage:   "Auth token for server requests.",
-					},
-					&cli.DurationFlag{
-						Name:    "interval",
-						Aliases: []string{"i"},
-						Value:   time.Second,
-						Usage:   "Minimum interval between running tasks.",
-					},
-					&cli.DurationFlag{
-						Name:    "claim-tasks-older-than",
-						Aliases: []string{"older", "o"},
-						Value:   7 * 24 * time.Hour,
-						Usage:   "Only claim tasks older than this value.",
-					},
-				},
-				Action: func(ctx *cli.Context) error {
-					return run_property_scrape_worker(ctx)
 				},
 			},
 		}}
@@ -113,19 +153,25 @@ func main() {
 }
 
 func serve_http(ctx *cli.Context) error {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := getDefaultLogger(slog.LevelDebug)
 	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
+	cfg, err := config.LoadDefaultConfig(ctx.Context)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s3Client := s3.NewFromConfig(cfg)
 	return server.RunHTTPServer(
 		ctx.Context,
+		ctx.String("listen-port"),
 		logger,
 		ctx.String("db-host"),
 		redfinClient,
-		ctx.String("listen-port"),
+		s3Client,
 	)
 }
 
 func run_search_worker(ctx *cli.Context) error {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := getDefaultLogger(slog.LevelDebug)
 	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
 	cfg, err := config.LoadDefaultConfig(ctx.Context)
 	if err != nil {
@@ -146,7 +192,7 @@ func run_search_worker(ctx *cli.Context) error {
 }
 
 func run_property_scrape_worker(ctx *cli.Context) error {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := getDefaultLogger(slog.LevelDebug)
 	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
 	cfg, err := config.LoadDefaultConfig(ctx.Context)
 	if err != nil {
@@ -165,4 +211,32 @@ func run_property_scrape_worker(ctx *cli.Context) error {
 		),
 	)
 	return nil
+}
+
+func add_search_query(ctx *cli.Context) error {
+	logger := getDefaultLogger(slog.LevelDebug)
+	return worker.AddSeachQuery(
+		ctx.Context,
+		logger,
+		ctx.String("server-endpoint"),
+		ctx.String("auth-token"),
+		ctx.String("query"),
+	)
+}
+
+func getDefaultLogger(lvl slog.Level) *slog.Logger {
+	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     lvl,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.SourceKey {
+				source, _ := a.Value.Any().(*slog.Source)
+				if source != nil {
+					source.Function = ""
+					source.File = filepath.Base(source.File)
+				}
+			}
+			return a
+		},
+	}))
 }

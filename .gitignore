@@ -6,3 +6,6 @@
 # binaries
 cli
 !cli/
+
+# data dumps
+test-data/
