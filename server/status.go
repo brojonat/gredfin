@@ -2,11 +2,13 @@ package server
 
 const ScrapeStatusGood = "good"
 const ScrapeStatusPending = "pending"
+const ScrapeStatusBad = "bad"
 
 func getValidStatuses() []string {
 	return []string{
 		ScrapeStatusGood,
 		ScrapeStatusPending,
+		ScrapeStatusBad,
 	}
 }
 

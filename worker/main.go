@@ -68,7 +68,10 @@ func RunWorkerFunc(
 	}
 }
 
-// Default implementation of a Search scrape worker.
+// Default implementation of a Search scrape worker. The worker pulls a search
+// query from the service and runs the query against the Redfin API. A list of
+// URLs is extracted from the result and for each URL, another query is
+// performed against the Redfin API (with spacing/delay set by `pqd`).
 func MakeSearchWorkerFunc(
 	endpoint string,
 	authToken string,
@@ -101,14 +104,22 @@ func MakeSearchWorkerFunc(
 
 		// for each URL, upload the property listing to the DB
 		h := getDefaultServerHeaders(authToken)
+		errCount := 0
+		successCount := len(urls)
 		for _, u := range urls {
 			if err := addPropertyFromURL(endpoint, h, grc, u, pqd); err != nil {
 				l.Error(err.Error())
+				errCount += 1
+				successCount -= 1
 			}
 		}
+		l.Info("search results uploaded", "error", errCount, "success", successCount)
 
-		err = markSearchStatus(endpoint, getDefaultServerHeaders(authToken), s, server.ScrapeStatusGood)
-		if err != nil {
+		status := server.ScrapeStatusGood
+		if successCount == 0 {
+			status = server.ScrapeStatusBad
+		}
+		if err = markSearchStatus(endpoint, getDefaultServerHeaders(authToken), s, status); err != nil {
 			l.Error(err.Error())
 			return
 		}

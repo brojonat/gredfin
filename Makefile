@@ -20,10 +20,10 @@ run-http-server:
 
 run-search-worker:
 	$(call setup_env, worker/.env)
-	./cli run search-worker --server-endpoint ${SERVER_ENDPOINT} --auth-token ${AUTH_TOKEN} -i 5s
+	./cli run search-worker --server-endpoint ${SERVER_ENDPOINT} --auth-token ${AUTH_TOKEN} -i 5s --log-level -4
 
 run-property-worker:
 	$(call setup_env, worker/.env)
-	./cli run property-worker --server-endpoint ${SERVER_ENDPOINT} --auth-token ${AUTH_TOKEN} -i 5s
+	./cli run property-worker --server-endpoint ${SERVER_ENDPOINT} --auth-token ${AUTH_TOKEN} -i 5s --log-level -4
 
 

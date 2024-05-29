@@ -112,6 +112,8 @@ func getURLSFromQuery(
 		return nil, fmt.Errorf("unexpected region format: %s", p.Sections[0].Rows[0].ID)
 	}
 
+	// disabling "region_type" for now since it seems like the default "2" is
+	// correct for zipcodes
 	// giscsvParams["region_type"] = regionParts[0]
 	giscsvParams["region_id"] = regionParts[1]
 	b, err = grc.GISCSV(giscsvParams)
@@ -152,15 +154,15 @@ func addPropertyFromURL(
 	url string,
 	delay time.Duration,
 ) error {
+	ts_start := time.Now()
 	bii, err := grc.InitialInfo(
 		strings.TrimPrefix(url, "https://www.redfin.com"),
 		map[string]string{},
 	)
-	// sleep to avoid smashing redfin's api
-	time.Sleep(delay)
 	if err != nil {
 		return fmt.Errorf("error getting initial_info: %w", err)
 	}
+
 	var res redfin.RedfinResponse
 	if err = json.Unmarshal(bii, &res); err != nil {
 		return fmt.Errorf("error serializing initial_info response: %w", err)
@@ -181,5 +183,9 @@ func addPropertyFromURL(
 			iip.PropertyID, iip.ListingID, url, err,
 		)
 	}
+
+	// sleep to avoid smashing redfin's api
+	ts_end := time.Now()
+	time.Sleep(delay - ts_end.Sub(ts_start))
 	return nil
 }

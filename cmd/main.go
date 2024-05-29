@@ -44,6 +44,12 @@ func main() {
 								Usage:    "Redfin search query (this should just be a zipcode).",
 								Required: true,
 							},
+							&cli.IntFlag{
+								Name:    "log-level",
+								Aliases: []string{"ll", "l"},
+								Usage:   "Logging level for the slog.Logger. Default is 0 (INFO), use -4 for DEBUG.",
+								Value:   0,
+							},
 						},
 						Action: func(ctx *cli.Context) error {
 							return add_search_query(ctx)
@@ -71,6 +77,12 @@ func main() {
 								Value:    os.Getenv("DATABASE_URL"),
 								Usage:    "Database endpoint.",
 								Required: true,
+							},
+							&cli.IntFlag{
+								Name:    "log-level",
+								Aliases: []string{"ll", "l"},
+								Usage:   "Logging level for the slog.Logger. Default is 0 (INFO), use -4 for DEBUG.",
+								Value:   0,
 							},
 						},
 						Action: func(ctx *cli.Context) error {
@@ -111,6 +123,12 @@ func main() {
 								Value:   500 * time.Millisecond,
 								Usage:   "Delay between search result property queries.",
 							},
+							&cli.IntFlag{
+								Name:    "log-level",
+								Aliases: []string{"ll", "l"},
+								Usage:   "Logging level for the slog.Logger. Default is 0 (INFO), use -4 for DEBUG.",
+								Value:   0,
+							},
 						},
 						Action: func(ctx *cli.Context) error {
 							return run_search_worker(ctx)
@@ -144,6 +162,12 @@ func main() {
 								Value:   7 * 24 * time.Hour,
 								Usage:   "Only claim tasks older than this value.",
 							},
+							&cli.IntFlag{
+								Name:    "log-level",
+								Aliases: []string{"ll", "l"},
+								Usage:   "Logging level for the slog.Logger. Default is 0 (INFO), use -4 for DEBUG.",
+								Value:   0,
+							},
 						},
 						Action: func(ctx *cli.Context) error {
 							return run_property_scrape_worker(ctx)
@@ -159,7 +183,7 @@ func main() {
 }
 
 func serve_http(ctx *cli.Context) error {
-	logger := getDefaultLogger(slog.LevelDebug)
+	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
 	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
 	cfg, err := config.LoadDefaultConfig(ctx.Context)
 	if err != nil {
@@ -177,7 +201,7 @@ func serve_http(ctx *cli.Context) error {
 }
 
 func run_search_worker(ctx *cli.Context) error {
-	logger := getDefaultLogger(slog.LevelDebug)
+	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
 	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
 	cfg, err := config.LoadDefaultConfig(ctx.Context)
 	if err != nil {
@@ -203,7 +227,7 @@ func run_search_worker(ctx *cli.Context) error {
 }
 
 func run_property_scrape_worker(ctx *cli.Context) error {
-	logger := getDefaultLogger(slog.LevelDebug)
+	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
 	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
 	cfg, err := config.LoadDefaultConfig(ctx.Context)
 	if err != nil {
@@ -225,7 +249,7 @@ func run_property_scrape_worker(ctx *cli.Context) error {
 }
 
 func add_search_query(ctx *cli.Context) error {
-	logger := getDefaultLogger(slog.LevelDebug)
+	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
 	return worker.AddSeachQuery(
 		ctx.Context,
 		logger,
