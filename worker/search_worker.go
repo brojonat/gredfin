@@ -2,6 +2,7 @@ package worker
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -13,9 +14,68 @@ import (
 	"time"
 
 	"github.com/brojonat/gredfin/redfin"
+	"github.com/brojonat/gredfin/server"
 	"github.com/brojonat/gredfin/server/dbgen"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+// Default implementation of a Search scrape worker. The worker pulls a search
+// query from the service and runs the query against the Redfin API. A list of
+// URLs is extracted from the result and for each URL, another query is
+// performed against the Redfin API (with spacing/delay set by `pqd`).
+func MakeSearchWorkerFunc(
+	endpoint string,
+	authToken string,
+	grc redfin.Client,
+	pqd time.Duration,
+) func(context.Context, *slog.Logger) {
+	f := func(ctx context.Context, l *slog.Logger) {
+		// claim the search query
+		l.Info("running search scrape worker loop")
+		s, err := claimSearch(endpoint, server.GetDefaultServerHeaders(authToken))
+		if err != nil {
+			l.Error("error getting search, exiting", "error", err.Error())
+			return
+		}
+		l.Info("claimed query", "query", s.Query.String)
+
+		// run the query and get a list of Redfin URLs
+		urls, err := getURLSFromQuery(
+			l,
+			grc,
+			s.Query.String,
+			getDefaultSearchParams(),
+			getDefaultGISCSVParams(),
+		)
+		if err != nil {
+			l.Error(err.Error())
+			return
+		}
+
+		// for each URL, upload the property listing to the DB
+		h := server.GetDefaultServerHeaders(authToken)
+		errCount := 0
+		successCount := len(urls)
+		for _, u := range urls {
+			if err := addPropertyFromURL(endpoint, h, grc, u, pqd); err != nil {
+				l.Error(err.Error())
+				errCount += 1
+				successCount -= 1
+			}
+		}
+		l.Info("search results uploaded", "error", errCount, "success", successCount)
+
+		status := server.ScrapeStatusGood
+		if successCount == 0 {
+			status = server.ScrapeStatusBad
+		}
+		if err = markSearchStatus(endpoint, server.GetDefaultServerHeaders(authToken), s, status); err != nil {
+			l.Error(err.Error())
+			return
+		}
+	}
+	return f
+}
 
 // POST a request to claim an item from the search queue.
 func claimSearch(endpoint string, h http.Header) (*dbgen.Search, error) {

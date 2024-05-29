@@ -1,20 +1,10 @@
 package worker
 
-import "net/http"
-
 const (
 	// default region/type for Columbus, OH
 	defaultRegionID   = "18063"
 	defaultRegionType = "2" // 2 is _maybe_ zipcode?
 )
-
-// Return the default headers to use to make queries against the server
-func getDefaultServerHeaders(authToken string) http.Header {
-	h := http.Header{}
-	h.Add("Authorization", authToken)
-	h.Add("Content-Type", "application/json")
-	return h
-}
 
 // Return the default parameters for the Redfin GIS-CSV query. Note that callers
 // still need to override the "region_id" and "region_type" fields. The default

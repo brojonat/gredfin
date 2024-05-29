@@ -2,13 +2,37 @@ package worker
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 
+	"github.com/brojonat/gredfin/redfin"
+	"github.com/brojonat/gredfin/server"
 	"github.com/brojonat/gredfin/server/dbgen"
 )
+
+// Default implementation of a Property scrape worker.
+func MakePropertyWorkerFunc(
+	endpoint string,
+	authToken string,
+	grc redfin.Client,
+) func(context.Context, *slog.Logger) {
+	f := func(ctx context.Context, l *slog.Logger) {
+		l.Info("running property scrape worker")
+		p, err := claimProperty(endpoint, server.GetDefaultServerHeaders(authToken))
+		if err != nil {
+			l.Error("error getting property", "error", err.Error())
+			return
+		}
+		l.Info("got property", "url", p.URL.String)
+
+		// pull from redfin and upload to cloud
+	}
+	return f
+}
 
 func claimProperty(endpoint string, headers http.Header) (*dbgen.Property, error) {
 	req, err := http.NewRequest(

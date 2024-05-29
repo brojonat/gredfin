@@ -55,6 +55,51 @@ func main() {
 							return add_search_query(ctx)
 						},
 					},
+					{
+						Name:  "add-property-query",
+						Usage: "Add a property query that property workers will run.",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:    "server-endpoint",
+								Aliases: []string{"server", "s"},
+								Value:   os.Getenv("SERVER_ENDPOINT"),
+								Usage:   "Server endpoint.",
+							},
+							&cli.StringFlag{
+								Name:    "auth-token",
+								Aliases: []string{"token", "t"},
+								Value:   os.Getenv("AUTH_TOKEN"),
+								Usage:   "Auth token for server requests.",
+							},
+							&cli.StringFlag{
+								Name:     "property_id",
+								Aliases:  []string{"pid"},
+								Usage:    "Redfin property ID.",
+								Required: true,
+							},
+							&cli.StringFlag{
+								Name:     "listing_id",
+								Aliases:  []string{"lid"},
+								Usage:    "Redfin listing ID.",
+								Required: true,
+							},
+							&cli.StringFlag{
+								Name:     "url",
+								Aliases:  []string{"u"},
+								Usage:    "Redfin URL.",
+								Required: true,
+							},
+							&cli.IntFlag{
+								Name:    "log-level",
+								Aliases: []string{"ll", "l"},
+								Usage:   "Logging level for the slog.Logger. Default is 0 (INFO), use -4 for DEBUG.",
+								Value:   0,
+							},
+						},
+						Action: func(ctx *cli.Context) error {
+							return add_property_query(ctx)
+						},
+					},
 				},
 			},
 			{
@@ -203,11 +248,6 @@ func serve_http(ctx *cli.Context) error {
 func run_search_worker(ctx *cli.Context) error {
 	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
 	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
-	cfg, err := config.LoadDefaultConfig(ctx.Context)
-	if err != nil {
-		log.Fatal(err)
-	}
-	s3Client := s3.NewFromConfig(cfg)
 	pqd, err := time.ParseDuration(ctx.String("property-query-delay"))
 	if err != nil {
 		log.Fatal(err)
@@ -219,7 +259,7 @@ func run_search_worker(ctx *cli.Context) error {
 		worker.MakeSearchWorkerFunc(
 			ctx.String("server-endpoint"),
 			ctx.String("auth-token"),
-			redfinClient, s3Client,
+			redfinClient,
 			pqd,
 		),
 	)
@@ -229,11 +269,6 @@ func run_search_worker(ctx *cli.Context) error {
 func run_property_scrape_worker(ctx *cli.Context) error {
 	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
 	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
-	cfg, err := config.LoadDefaultConfig(ctx.Context)
-	if err != nil {
-		log.Fatal(err)
-	}
-	s3Client := s3.NewFromConfig(cfg)
 	worker.RunWorkerFunc(
 		ctx.Context,
 		logger,
@@ -242,7 +277,6 @@ func run_property_scrape_worker(ctx *cli.Context) error {
 			ctx.String("server-endpoint"),
 			ctx.String("auth-token"),
 			redfinClient,
-			s3Client,
 		),
 	)
 	return nil
@@ -250,12 +284,25 @@ func run_property_scrape_worker(ctx *cli.Context) error {
 
 func add_search_query(ctx *cli.Context) error {
 	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
-	return worker.AddSeachQuery(
+	return AddSeachQuery(
 		ctx.Context,
 		logger,
 		ctx.String("server-endpoint"),
 		ctx.String("auth-token"),
 		ctx.String("query"),
+	)
+}
+
+func add_property_query(ctx *cli.Context) error {
+	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
+	return AddPropertyQuery(
+		ctx.Context,
+		logger,
+		ctx.String("server-endpoint"),
+		ctx.String("auth-token"),
+		ctx.String("property_id"),
+		ctx.String("listing_id"),
+		ctx.String("url"),
 	)
 }
 
