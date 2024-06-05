@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -53,6 +54,45 @@ func main() {
 						},
 						Action: func(ctx *cli.Context) error {
 							return add_search_query(ctx)
+						},
+					},
+					{
+						Name:  "test-search-query",
+						Usage: "Run a particular search query.",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:    "server-endpoint",
+								Aliases: []string{"server", "s"},
+								Value:   os.Getenv("SERVER_ENDPOINT"),
+								Usage:   "Server endpoint.",
+							},
+							&cli.StringFlag{
+								Name:    "auth-token",
+								Aliases: []string{"token", "t"},
+								Value:   os.Getenv("AUTH_TOKEN"),
+								Usage:   "Auth token for server requests.",
+							},
+							&cli.StringFlag{
+								Name:     "query",
+								Aliases:  []string{"q"},
+								Usage:    "Redfin search query (this should just be a zipcode).",
+								Required: true,
+							},
+							&cli.StringFlag{
+								Name:    "user-agent",
+								Aliases: []string{"ua", "u"},
+								Value:   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+								Usage:   "Redfin client User-Agent",
+							},
+							&cli.IntFlag{
+								Name:    "log-level",
+								Aliases: []string{"ll", "l"},
+								Usage:   "Logging level for the slog.Logger. Default is 0 (INFO), use -4 for DEBUG.",
+								Value:   0,
+							},
+						},
+						Action: func(ctx *cli.Context) error {
+							return test_search_query(ctx)
 						},
 					},
 					{
@@ -113,15 +153,20 @@ func main() {
 							&cli.StringFlag{
 								Name:    "listen-port",
 								Aliases: []string{"port", "p"},
-								Value:   "8080",
+								Value:   os.Getenv("SERVER_PORT"),
 								Usage:   "Port to listen on.",
 							},
 							&cli.StringFlag{
-								Name:     "db-host",
-								Aliases:  []string{"db", "d"},
-								Value:    os.Getenv("DATABASE_URL"),
-								Usage:    "Database endpoint.",
-								Required: true,
+								Name:    "db-host",
+								Aliases: []string{"db", "d"},
+								Value:   os.Getenv("DATABASE_URL"),
+								Usage:   "Database endpoint.",
+							},
+							&cli.StringFlag{
+								Name:    "user-agent",
+								Aliases: []string{"ua", "u"},
+								Value:   os.Getenv("REDFIN_USER_AGENT"),
+								Usage:   "Redfin client User-Agent",
 							},
 							&cli.IntFlag{
 								Name:    "log-level",
@@ -168,6 +213,12 @@ func main() {
 								Value:   500 * time.Millisecond,
 								Usage:   "Delay between search result property queries.",
 							},
+							&cli.StringFlag{
+								Name:    "user-agent",
+								Aliases: []string{"ua", "u"},
+								Value:   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+								Usage:   "Redfin client User-Agent",
+							},
 							&cli.IntFlag{
 								Name:    "log-level",
 								Aliases: []string{"ll", "l"},
@@ -207,6 +258,12 @@ func main() {
 								Value:   7 * 24 * time.Hour,
 								Usage:   "Only claim tasks older than this value.",
 							},
+							&cli.StringFlag{
+								Name:    "user-agent",
+								Aliases: []string{"ua", "u"},
+								Value:   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+								Usage:   "Redfin client User-Agent",
+							},
 							&cli.IntFlag{
 								Name:    "log-level",
 								Aliases: []string{"ll", "l"},
@@ -229,7 +286,7 @@ func main() {
 
 func serve_http(ctx *cli.Context) error {
 	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
-	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
+	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"))
 	cfg, err := config.LoadDefaultConfig(ctx.Context)
 	if err != nil {
 		log.Fatal(err)
@@ -247,7 +304,7 @@ func serve_http(ctx *cli.Context) error {
 
 func run_search_worker(ctx *cli.Context) error {
 	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
-	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
+	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"))
 	pqd, err := time.ParseDuration(ctx.String("property-query-delay"))
 	if err != nil {
 		log.Fatal(err)
@@ -268,7 +325,7 @@ func run_search_worker(ctx *cli.Context) error {
 
 func run_property_scrape_worker(ctx *cli.Context) error {
 	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
-	redfinClient := redfin.NewClient("https://redfin.com/stingray/", "gredfin-client (brojonat@gmail.com)")
+	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"))
 	worker.RunWorkerFunc(
 		ctx.Context,
 		logger,
@@ -291,6 +348,34 @@ func add_search_query(ctx *cli.Context) error {
 		ctx.String("auth-token"),
 		ctx.String("query"),
 	)
+}
+
+func test_search_query(ctx *cli.Context) error {
+	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
+	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"))
+	sp := worker.GetDefaultSearchParams()
+	gissp := worker.GetDefaultGISCSVParams()
+	region_types := []string{"2"}
+	urls := []string{}
+	for _, rt := range region_types {
+		gissp["region_type"] = rt
+		gissp["market"] = "chicago"
+		newURLs, err := worker.GetURLSFromQuery(
+			logger,
+			redfinClient,
+			ctx.String("query"),
+			sp,
+			gissp,
+		)
+		if err != nil {
+			return err
+		}
+		urls = append(urls, newURLs...)
+	}
+	for _, u := range urls {
+		fmt.Printf("%s\n", u)
+	}
+	return nil
 }
 
 func add_property_query(ctx *cli.Context) error {

@@ -1,6 +1,7 @@
 package redfin
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 )
@@ -64,7 +65,7 @@ func (c *client) doPropertyRequest(path string, params map[string]string, page b
 		params["pageType"] = "3"
 	}
 	params["accessLevel"] = "1"
-	return c.doRequest("api/home/details"+path, params)
+	return c.doRequest("api/home/details/"+path, params)
 }
 
 func (c *client) doRequest(url string, params map[string]string) ([]byte, error) {
@@ -78,12 +79,12 @@ func (c *client) doRequest(url string, params map[string]string) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(req.URL)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
-	// possibly handle gzip encoding IF the server returns this for the gis query
 	b, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err

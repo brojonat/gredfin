@@ -76,6 +76,11 @@ func getRootHandler(
 		apiMode(l, maxBytes, allowedOrigins),
 		mustAuth(),
 	))
+	mux.HandleFunc("PUT /property-query", adaptHandler(
+		handlePropertyQueryUpdate(l, p, q),
+		apiMode(l, maxBytes, allowedOrigins),
+		mustAuth(),
+	))
 	mux.HandleFunc("DELETE /property-query", adaptHandler(
 		handlePropertyQueryDelete(l, q),
 		apiMode(l, maxBytes, allowedOrigins),
@@ -95,11 +100,6 @@ func getRootHandler(
 	// property worker routes
 	mux.HandleFunc("POST /property-query/claim-next", adaptHandler(
 		handlePropertyQueryClaimNext(l, p, q),
-		apiMode(l, maxBytes, allowedOrigins),
-		mustAuth(),
-	))
-	mux.HandleFunc("POST /property-query/set-status", adaptHandler(
-		handlePropertySetStatus(l, q),
 		apiMode(l, maxBytes, allowedOrigins),
 		mustAuth(),
 	))

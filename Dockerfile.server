@@ -1,0 +1,11 @@
+FROM golang:alpine as builder
+RUN apk update && apk upgrade && apk add --no-cache ca-certificates
+RUN update-ca-certificates
+
+FROM scratch
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY cli .
+EXPOSE 8080
+# the cli should pull the relevant params from the env so we shouldn't need to
+# specify them here
+CMD [ "./cli", "run", "http-server" ]

@@ -79,7 +79,7 @@ func handleSearchQueryPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			var mr *MalformedRequest
 			if errors.As(err, &mr) {
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad request"})
+				json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad request"})
 			} else {
 				writeInternalError(l, w, err)
 			}
@@ -91,7 +91,7 @@ func handleSearchQueryPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(defaultJSONResponse{Message: "ok"})
+		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
 	}
 }
 
@@ -103,7 +103,7 @@ func handleSearchQueryDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc 
 		// no identifier supplied, error out
 		if search_id == "" && search_query == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "must supply search_id or search_query"})
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "must supply search_id or search_query"})
 			return
 		}
 
@@ -114,7 +114,7 @@ func handleSearchQueryDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc 
 				writeInternalError(l, w, err)
 				return
 			}
-			json.NewEncoder(w).Encode(defaultJSONResponse{Message: "ok"})
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
 			return
 		}
 
@@ -122,7 +122,7 @@ func handleSearchQueryDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc 
 		sid, err := strconv.Atoi(search_id)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for search_id"})
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad value for search_id"})
 			return
 		}
 		err = q.DeleteSearch(r.Context(), int32(sid))
@@ -131,7 +131,7 @@ func handleSearchQueryDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc 
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(defaultJSONResponse{Message: "ok"})
+		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
 	}
 }
 
@@ -142,7 +142,9 @@ func handleSearchQueryClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Querie
 			writeInternalError(l, w, err)
 			return
 		}
+		defer tx.Commit(r.Context())
 		q = q.WithTx(tx)
+
 		s, err := q.GetNNextSearchScrapeForUpdate(
 			r.Context(),
 			dbgen.GetNNextSearchScrapeForUpdateParams{
@@ -167,7 +169,6 @@ func handleSearchQueryClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Querie
 			writeInternalError(l, w, err)
 			return
 		}
-		tx.Commit(r.Context())
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(s)
 	}
@@ -180,14 +181,14 @@ func handleSearchQuerySetStatus(l *slog.Logger, q *dbgen.Queries) http.HandlerFu
 
 		if search_id == "" || status == "" || !isValidStatus(status) {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "must specify search_id and valid status"})
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "must specify search_id and valid status"})
 			return
 		}
 
 		sid, err := strconv.Atoi(search_id)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad value for search_id"})
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad value for search_id"})
 			return
 		}
 
@@ -203,6 +204,6 @@ func handleSearchQuerySetStatus(l *slog.Logger, q *dbgen.Queries) http.HandlerFu
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(defaultJSONResponse{Message: "ok"})
+		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
 	}
 }

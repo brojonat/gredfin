@@ -59,7 +59,7 @@ func (q *Queries) DeletePropertyListingsByID(ctx context.Context, propertyID int
 const getNNextPropertyScrapeForUpdate = `-- name: GetNNextPropertyScrapeForUpdate :one
 SELECT property_id, listing_id, url, last_scrape_ts, last_scrape_status, last_scrape_checksums FROM property
 WHERE last_scrape_status = ANY($2::VARCHAR[])
-ORDER BY NOW()::timestamp - last_scrape_ts
+ORDER BY NOW()::timestamp - last_scrape_ts DESC
 LIMIT $1
 FOR UPDATE
 `
@@ -175,7 +175,7 @@ func (q *Queries) ListProperties(ctx context.Context) ([]Property, error) {
 	return items, nil
 }
 
-const postProperty = `-- name: PostProperty :exec
+const putProperty = `-- name: PutProperty :exec
 UPDATE property
   SET url = $3,
   last_scrape_ts = $4,
@@ -184,7 +184,7 @@ UPDATE property
 WHERE property_id = $1 AND listing_id = $2
 `
 
-type PostPropertyParams struct {
+type PutPropertyParams struct {
 	PropertyID          int32                        `json:"property_id"`
 	ListingID           int32                        `json:"listing_id"`
 	URL                 pgtype.Text                  `json:"url"`
@@ -193,8 +193,8 @@ type PostPropertyParams struct {
 	LastScrapeChecksums jsonb.PropertyScrapeMetadata `json:"last_scrape_checksums"`
 }
 
-func (q *Queries) PostProperty(ctx context.Context, arg PostPropertyParams) error {
-	_, err := q.db.Exec(ctx, postProperty,
+func (q *Queries) PutProperty(ctx context.Context, arg PutPropertyParams) error {
+	_, err := q.db.Exec(ctx, putProperty,
 		arg.PropertyID,
 		arg.ListingID,
 		arg.URL,

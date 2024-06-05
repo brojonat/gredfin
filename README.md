@@ -1,24 +1,22 @@
 # gredfin
 
-I wanted to build a package to scrape property data. I was able to find an unofficial Redfin client implemented in Python, so I decided I'd implement it in Go and build this project around it. The ultimate goal is to surface a list of realtors and their property sale history to provide everyone with a clear record of their realtor's past performance. The idea is to regularly scrape Redfin (or any realty API) for property data, store the data, and then perform analytics on it. The implementation uses an HTTP server manage job queues and surface data; distributed workers pull jobs from the queue and query the property API(s).
+I wanted to build a package to scrape property data. I was able to find an unofficial Redfin client implemented in Python, so I decided I'd implement it in Go and build this project around it. The ultimate goal is to surface a list of realtors and their property sale history to provide everyone with a clear record of their realtor's past performance. The idea is to regularly scrape Redfin (or any realty API) for property data, store the data, perform analytics on it, and expose the data to a client (Flutter) app. An HTTP server manages job queues and provides REST API endpoints for accessing the data; distributed workers pull jobs from the queue and upload the results back to the server.
 
 ## Overall Strategy
 
-1. Enter a search query. A worker will run this query once per day and parse it for property listings. It will extract the propertyID, listingID and insert into the property table.
+1. A worker will regularly run "search queries" to collect a CSV of property listings on a zipcode-by-zipcode basis. The worker uses the URL field in the CSV to fetch the corresponding `(propertyID, listingID)` from Redfin and insert a corresponding row the property table.
 
-   - grc.search(zipcode) to get the region_id
-     For
-
-2. Roughly every week, a worker will claim a property listing, and do a full deep dive on it. It will grab all the data and upload it to cloud storage. It will also make an entry in the realtor table for that property if one does not exist.
+2. A different worker will claim property listings, and do a full deep dive on each property. It will grab all the data and upload it to cloud storage (with some hashing to avoid uploading duplicate data). The worker may also upload data of interest back to the server (e.g., the corresponding realtor and listing price).
 
 ## How to Use
 
-This repo has 4 top level packages: `server`, `worker`, `redfin`, and `cmd`. The `cmd` package provides the entry point for all the others. You can build the CLI with `make build cli`. This will output a binary to `cmd/cli`. You can run the various packages like:
+This repo has 4 top level packages: `redfin`, `server`, `worker`, and `cmd`. The `redfin` package provides a Redfin client. The `cmd` package provides the entry point for all the `server` and `worker` packages. You can build the CLI with `make build cli`. This will output a binary named `cli`. You can run the various packages like:
 
 ```bash
-cmd/cli run-http-server [OPTIONS]
-cmd/cli run-search-worker [OPTIONS]
-cmd/cli run-property-worker [OPTIONS]
+./cli --help
+./cli run http-server [OPTIONS]
+./cli run search-worker [OPTIONS]
+./cli run property-worker [OPTIONS]
 ```
 
 However, there are a number of options you'll need to specify, which can be error prone. As a result, you'll want to instead likely run something like:
@@ -27,15 +25,15 @@ However, there are a number of options you'll need to specify, which can be erro
 make build-cli && make run-http-server
 ```
 
-This will automatically run the `run-http-server` subcommand with options populated from the contents of `server/.env`. You can look at the resulting command to see the necessary envs to specify. Similarly, the worker commands will use the contents of `worker/.env`.
-
-## Package Server
-
-This is an HTTP server that provides an interface to the DB and cloud storage. Clients use this API to pull "jobs" (i.e., scraping targets), run their job, and then POST some data back to the server. The server also provides things like Presigned URLs to workers to they can upload their data to the cloud without needing any cloud credentials, bucket details, etc.
+This will automatically run the `run http-server` subcommand with options populated from the contents of `server/.env`. You can look at the resulting command to see the necessary envs to specify. Similarly, the worker commands will use the contents of `worker/.env`.
 
 ## Package Redfin
 
 This is a client wrapper around the unofficial Redfin API. Workers will typically instantiate a client for running scraping jobs.
+
+## Package Server
+
+This is an HTTP server that provides an interface to the DB and cloud storage. Clients use this API to pull "jobs" (i.e., scraping targets), run their job, and then upload data to the cloud and/or server. The server also provides things like S3 Presigned URLs to workers to they can upload their data to the cloud without needing any cloud credentials, bucket details, etc. All routes require authentication in the form of a `Authorization` header specifying a `Bearer` token in the form of a JWT. Tokens can be obtained from the server by supplying the necessary passphrase.
 
 ## Package Worker
 

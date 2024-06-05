@@ -40,16 +40,24 @@ func MakeSearchWorkerFunc(
 		l.Info("claimed query", "query", s.Query.String)
 
 		// run the query and get a list of Redfin URLs
-		urls, err := getURLSFromQuery(
-			l,
-			grc,
-			s.Query.String,
-			getDefaultSearchParams(),
-			getDefaultGISCSVParams(),
-		)
-		if err != nil {
-			l.Error(err.Error())
-			return
+		sp := GetDefaultSearchParams()
+		gissp := GetDefaultGISCSVParams()
+		region_types := []string{"1", "2", "3", "4", "5", "6"}
+		urls := []string{}
+		for _, rt := range region_types {
+			gissp["region_type"] = rt
+			newURLs, err := GetURLSFromQuery(
+				l,
+				grc,
+				s.Query.String,
+				sp,
+				gissp,
+			)
+			if err != nil {
+				l.Error(err.Error())
+				return
+			}
+			urls = append(urls, newURLs...)
 		}
 
 		// for each URL, upload the property listing to the DB
@@ -136,7 +144,7 @@ func markSearchStatus(endpoint string, h http.Header, s *dbgen.Search, status st
 	return nil
 }
 
-func getURLSFromQuery(
+func GetURLSFromQuery(
 	l *slog.Logger,
 	grc redfin.Client,
 	query string,
@@ -171,13 +179,9 @@ func getURLSFromQuery(
 		l.Error("logging bad search payload for reference", "payload", string(b))
 		return nil, fmt.Errorf("unexpected region format: %s", p.Sections[0].Rows[0].ID)
 	}
-
-	// disabling "region_type" for now since it seems like the default "2" is
-	// correct for zipcodes
-	// giscsvParams["region_type"] = regionParts[0]
 	giscsvParams["region_id"] = regionParts[1]
+	fmt.Println(giscsvParams)
 	b, err = grc.GISCSV(giscsvParams)
-
 	if err != nil {
 		return nil, fmt.Errorf("error getting csv: %w", err)
 	}
@@ -186,11 +190,19 @@ func getURLSFromQuery(
 	csvr.FieldsPerRecord = -1 // Allow variable number of fields
 	rows, err := csvr.ReadAll()
 	if err != nil {
+		l.Error(string(b))
 		return nil, fmt.Errorf("error reading csv bytes: %w", err)
+	}
+	if len(rows) <= 2 {
+		l.Debug("no rows for query", "query", query, "region", p.Sections[0].Rows[0].ID, "region_type", giscsvParams["region_type"])
+		return []string{}, nil
 	}
 
 	headers := rows[0]
-	_ = rows[1] // In accordance with local MLS rules, some MLS listings are not included in the download
+	// rows[1] should be: "In accordance with local MLS rules, some MLS listings are not included in the download"
+	if rows[1][0] != "In accordance with local MLS rules, some MLS listings are not included in the download" {
+		l.Error("unexpected rows format, missing MLS caveat line", "rows[1]", rows[1])
+	}
 	data := rows[2:]
 	var urlIndex int
 	for idx, h := range headers {

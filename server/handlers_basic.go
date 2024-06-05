@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type defaultJSONResponse struct {
+type DefaultJSONResponse struct {
 	Message string `json:"message,omitempty"`
 	Error   string `json:"error,omitempty"`
 }
@@ -24,12 +24,12 @@ func writeInternalError(l *slog.Logger, w http.ResponseWriter, e error) {
 	r := slog.NewRecord(time.Now(), slog.LevelError, fmt.Sprintf(e.Error()), pcs[0])
 	_ = l.Handler().Handle(context.Background(), r)
 	w.WriteHeader(http.StatusInternalServerError)
-	json.NewEncoder(w).Encode(defaultJSONResponse{Error: "internal error"})
+	json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "internal error"})
 }
 
 func writeEmptyResultError(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNotFound)
-	resp := defaultJSONResponse{Error: "empty result set"}
+	resp := DefaultJSONResponse{Error: "empty result set"}
 	json.NewEncoder(w).Encode(resp)
 }
 
@@ -41,7 +41,7 @@ func handlePing(l *slog.Logger, p *pgxpool.Pool) http.HandlerFunc {
 			writeInternalError(l, w, err)
 			return
 		}
-		json.NewEncoder(w).Encode(defaultJSONResponse{Message: "PONG"})
+		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "PONG"})
 	}
 }
 
@@ -51,18 +51,18 @@ func handleIssueToken(l *slog.Logger) http.HandlerFunc {
 		t := r.Header.Get("Authorization")
 		if t == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "must supply authorization header"})
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "must supply authorization header"})
 			return
 		}
 		email := r.URL.Query().Get("email")
 		if email == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "must supply email"})
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "must supply email"})
 			return
 		}
 		if t != getSecretKey() {
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(defaultJSONResponse{Error: "not authorized"})
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "not authorized"})
 			return
 		}
 		sc := jwt.StandardClaims{
@@ -75,6 +75,6 @@ func handleIssueToken(l *slog.Logger) http.HandlerFunc {
 		token, _ := generateAccessToken(c)
 		l.Warn("issuing sudo token", "token", token)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(defaultJSONResponse{Message: token})
+		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: token})
 	}
 }

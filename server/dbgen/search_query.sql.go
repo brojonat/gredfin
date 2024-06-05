@@ -47,7 +47,7 @@ func (q *Queries) DeleteSearchByQuery(ctx context.Context, query pgtype.Text) er
 const getNNextSearchScrapeForUpdate = `-- name: GetNNextSearchScrapeForUpdate :one
 SELECT search_id, query, last_scrape_ts, last_scrape_status FROM search
 WHERE last_scrape_status = ANY($2::VARCHAR[])
-ORDER BY NOW()::timestamp - last_scrape_ts
+ORDER BY NOW()::timestamp - last_scrape_ts DESC
 LIMIT $1
 FOR UPDATE
 `

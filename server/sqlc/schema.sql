@@ -8,8 +8,6 @@ CREATE TABLE property (
   PRIMARY KEY (property_id, listing_id)
 );
 
--- TODO: add property sale status to Property?
-
 CREATE TABLE search (
   search_id SERIAL PRIMARY KEY,
   query VARCHAR(128),
@@ -20,11 +18,13 @@ CREATE TABLE search (
 
 CREATE TABLE realtor (
   realtor_id SERIAL,
-  realtor_name VARCHAR(64),
-  realtor_company VARCHAR(64),
+  name VARCHAR(64),
+  company VARCHAR(64),
   property_id INT,
   listing_id INT,
   list_price INT,
+  created_ts TIMESTAMP NOT NULL DEFAULT '19700101 00:00:00'::TIMESTAMP,
   FOREIGN KEY (property_id, listing_id) REFERENCES property (property_id, listing_id),
-  PRIMARY KEY (realtor_id, property_id, listing_id)
+  PRIMARY KEY (name, property_id, listing_id, list_price),
+  UNIQUE (realtor_id)
 );

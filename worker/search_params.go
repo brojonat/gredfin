@@ -9,9 +9,9 @@ const (
 // Return the default parameters for the Redfin GIS-CSV query. Note that callers
 // still need to override the "region_id" and "region_type" fields. The default
 // values are set for demo/testing purposes and correspond to Columbus, OH.
-func getDefaultGISCSVParams() map[string]string {
+func GetDefaultGISCSVParams() map[string]string {
 	params := map[string]string{}
-	params["al"] = "1"
+	params["al"] = "3"
 	params["has_att_fiber"] = "false"
 	params["has_deal"] = "false"
 	params["has_dishwasher"] = "false"
@@ -31,7 +31,7 @@ func getDefaultGISCSVParams() map[string]string {
 	params["pool"] = "false"
 	params["region_id"] = defaultRegionID
 	params["region_type"] = defaultRegionType
-	params["sf"] = "1,2,3,5,6,7"
+	params["sf"] = "1,2,5,6,7"
 	params["status"] = "9"
 	params["travel_with_traffic"] = "false"
 	params["travel_within_region"] = "false"
@@ -42,7 +42,7 @@ func getDefaultGISCSVParams() map[string]string {
 }
 
 // Return the default parameters for the Redfin search query
-func getDefaultSearchParams() map[string]string {
+func GetDefaultSearchParams() map[string]string {
 	params := map[string]string{}
 	return params
 }

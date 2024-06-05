@@ -19,12 +19,13 @@ type Property struct {
 }
 
 type Realtor struct {
-	RealtorID      int32       `json:"realtor_id"`
-	RealtorName    pgtype.Text `json:"realtor_name"`
-	RealtorCompany pgtype.Text `json:"realtor_company"`
-	PropertyID     int32       `json:"property_id"`
-	ListingID      int32       `json:"listing_id"`
-	ListPrice      pgtype.Int4 `json:"list_price"`
+	RealtorID  int32            `json:"realtor_id"`
+	Name       string           `json:"name"`
+	Company    string           `json:"company"`
+	PropertyID int32            `json:"property_id"`
+	ListingID  int32            `json:"listing_id"`
+	ListPrice  int32            `json:"list_price"`
+	CreatedTs  pgtype.Timestamp `json:"created_ts"`
 }
 
 type Search struct {

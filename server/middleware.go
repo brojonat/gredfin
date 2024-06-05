@@ -85,7 +85,7 @@ func mustAuth() handlerAdapter {
 			var claims authJWTClaims
 			ts := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 			if ts == "" {
-				resp := defaultJSONResponse{Error: "missing authorization header"}
+				resp := DefaultJSONResponse{Error: "missing authorization header"}
 				w.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(w).Encode(resp)
 				return
@@ -98,7 +98,7 @@ func mustAuth() handlerAdapter {
 				// this can happen for all sorts of typical reasons (expired tokens, etc.)
 				// so nothing is logged and the user just gets a generic unauthorized message
 				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(defaultJSONResponse{Error: "bad token value"})
+				json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad token value"})
 				return
 			}
 			ctx := context.WithValue(r.Context(), jwtCtxKey, token.Claims)

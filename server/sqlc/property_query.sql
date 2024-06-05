@@ -13,7 +13,7 @@ WHERE property_id = $1;
 -- status rows to PENDING after retrieving rows.
 SELECT * FROM property
 WHERE last_scrape_status = ANY($2::VARCHAR[])
-ORDER BY NOW()::timestamp - last_scrape_ts
+ORDER BY NOW()::timestamp - last_scrape_ts DESC
 LIMIT $1
 FOR UPDATE;
 
@@ -28,7 +28,7 @@ INSERT INTO property (
   $1, $2, $3
 );
 
--- name: PostProperty :exec
+-- name: PutProperty :exec
 UPDATE property
   SET url = $3,
   last_scrape_ts = $4,

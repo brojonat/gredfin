@@ -7,32 +7,28 @@ package dbgen
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createRealtor = `-- name: CreateRealtor :exec
 INSERT INTO realtor (
-  realtor_id, realtor_name, realtor_company, property_id, listing_id, list_price
+  name, company, property_id, listing_id, list_price, created_ts
 ) VALUES (
-  $1, $2, $3, $4, $5, $6
-)
+  $1, $2, $3, $4, $5, NOW()::timestamp
+) ON CONFLICT ON CONSTRAINT realtor_pkey DO NOTHING
 `
 
 type CreateRealtorParams struct {
-	RealtorID      int32       `json:"realtor_id"`
-	RealtorName    pgtype.Text `json:"realtor_name"`
-	RealtorCompany pgtype.Text `json:"realtor_company"`
-	PropertyID     int32       `json:"property_id"`
-	ListingID      int32       `json:"listing_id"`
-	ListPrice      pgtype.Int4 `json:"list_price"`
+	Name       string `json:"name"`
+	Company    string `json:"company"`
+	PropertyID int32  `json:"property_id"`
+	ListingID  int32  `json:"listing_id"`
+	ListPrice  int32  `json:"list_price"`
 }
 
 func (q *Queries) CreateRealtor(ctx context.Context, arg CreateRealtorParams) error {
 	_, err := q.db.Exec(ctx, createRealtor,
-		arg.RealtorID,
-		arg.RealtorName,
-		arg.RealtorCompany,
+		arg.Name,
+		arg.Company,
 		arg.PropertyID,
 		arg.ListingID,
 		arg.ListPrice,
@@ -67,7 +63,7 @@ func (q *Queries) DeleteRealtorListing(ctx context.Context, arg DeleteRealtorLis
 }
 
 const getRealtorProperties = `-- name: GetRealtorProperties :many
-SELECT realtor_id, realtor_name, realtor_company, property_id, listing_id, list_price FROM realtor
+SELECT realtor_id, name, company, property_id, listing_id, list_price, created_ts FROM realtor
 WHERE realtor_id = $1
 `
 
@@ -82,11 +78,12 @@ func (q *Queries) GetRealtorProperties(ctx context.Context, realtorID int32) ([]
 		var i Realtor
 		if err := rows.Scan(
 			&i.RealtorID,
-			&i.RealtorName,
-			&i.RealtorCompany,
+			&i.Name,
+			&i.Company,
 			&i.PropertyID,
 			&i.ListingID,
 			&i.ListPrice,
+			&i.CreatedTs,
 		); err != nil {
 			return nil, err
 		}
@@ -99,12 +96,12 @@ func (q *Queries) GetRealtorProperties(ctx context.Context, realtorID int32) ([]
 }
 
 const getRealtorPropertiesByName = `-- name: GetRealtorPropertiesByName :many
-SELECT realtor_id, realtor_name, realtor_company, property_id, listing_id, list_price FROM realtor
-WHERE realtor_name = $1
+SELECT realtor_id, name, company, property_id, listing_id, list_price, created_ts FROM realtor
+WHERE name = $1
 `
 
-func (q *Queries) GetRealtorPropertiesByName(ctx context.Context, realtorName pgtype.Text) ([]Realtor, error) {
-	rows, err := q.db.Query(ctx, getRealtorPropertiesByName, realtorName)
+func (q *Queries) GetRealtorPropertiesByName(ctx context.Context, name string) ([]Realtor, error) {
+	rows, err := q.db.Query(ctx, getRealtorPropertiesByName, name)
 	if err != nil {
 		return nil, err
 	}
@@ -114,11 +111,12 @@ func (q *Queries) GetRealtorPropertiesByName(ctx context.Context, realtorName pg
 		var i Realtor
 		if err := rows.Scan(
 			&i.RealtorID,
-			&i.RealtorName,
-			&i.RealtorCompany,
+			&i.Name,
+			&i.Company,
 			&i.PropertyID,
 			&i.ListingID,
 			&i.ListPrice,
+			&i.CreatedTs,
 		); err != nil {
 			return nil, err
 		}
@@ -131,8 +129,8 @@ func (q *Queries) GetRealtorPropertiesByName(ctx context.Context, realtorName pg
 }
 
 const listRealtors = `-- name: ListRealtors :many
-SELECT realtor_id, realtor_name, realtor_company, property_id, listing_id, list_price FROM realtor
-ORDER BY realtor_name
+SELECT realtor_id, name, company, property_id, listing_id, list_price, created_ts FROM realtor
+ORDER BY name
 `
 
 func (q *Queries) ListRealtors(ctx context.Context) ([]Realtor, error) {
@@ -146,11 +144,12 @@ func (q *Queries) ListRealtors(ctx context.Context) ([]Realtor, error) {
 		var i Realtor
 		if err := rows.Scan(
 			&i.RealtorID,
-			&i.RealtorName,
-			&i.RealtorCompany,
+			&i.Name,
+			&i.Company,
 			&i.PropertyID,
 			&i.ListingID,
 			&i.ListPrice,
+			&i.CreatedTs,
 		); err != nil {
 			return nil, err
 		}
@@ -164,8 +163,8 @@ func (q *Queries) ListRealtors(ctx context.Context) ([]Realtor, error) {
 
 const postRealtor = `-- name: PostRealtor :exec
 UPDATE realtor
-  SET realtor_name = $2,
-  realtor_company = $3,
+  SET name = $2,
+  company = $3,
   property_id = $4,
   listing_id = $5,
   list_price = $6
@@ -173,19 +172,19 @@ WHERE realtor_id = $1
 `
 
 type PostRealtorParams struct {
-	RealtorID      int32       `json:"realtor_id"`
-	RealtorName    pgtype.Text `json:"realtor_name"`
-	RealtorCompany pgtype.Text `json:"realtor_company"`
-	PropertyID     int32       `json:"property_id"`
-	ListingID      int32       `json:"listing_id"`
-	ListPrice      pgtype.Int4 `json:"list_price"`
+	RealtorID  int32  `json:"realtor_id"`
+	Name       string `json:"name"`
+	Company    string `json:"company"`
+	PropertyID int32  `json:"property_id"`
+	ListingID  int32  `json:"listing_id"`
+	ListPrice  int32  `json:"list_price"`
 }
 
 func (q *Queries) PostRealtor(ctx context.Context, arg PostRealtorParams) error {
 	_, err := q.db.Exec(ctx, postRealtor,
 		arg.RealtorID,
-		arg.RealtorName,
-		arg.RealtorCompany,
+		arg.Name,
+		arg.Company,
 		arg.PropertyID,
 		arg.ListingID,
 		arg.ListPrice,
