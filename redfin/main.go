@@ -1,7 +1,6 @@
 package redfin
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 )
@@ -79,7 +78,6 @@ func (c *client) doRequest(url string, params map[string]string) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(req.URL)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err

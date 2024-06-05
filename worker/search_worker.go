@@ -180,7 +180,6 @@ func GetURLSFromQuery(
 		return nil, fmt.Errorf("unexpected region format: %s", p.Sections[0].Rows[0].ID)
 	}
 	giscsvParams["region_id"] = regionParts[1]
-	fmt.Println(giscsvParams)
 	b, err = grc.GISCSV(giscsvParams)
 	if err != nil {
 		return nil, fmt.Errorf("error getting csv: %w", err)

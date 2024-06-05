@@ -355,22 +355,15 @@ func test_search_query(ctx *cli.Context) error {
 	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"))
 	sp := worker.GetDefaultSearchParams()
 	gissp := worker.GetDefaultGISCSVParams()
-	region_types := []string{"2"}
-	urls := []string{}
-	for _, rt := range region_types {
-		gissp["region_type"] = rt
-		gissp["market"] = "chicago"
-		newURLs, err := worker.GetURLSFromQuery(
-			logger,
-			redfinClient,
-			ctx.String("query"),
-			sp,
-			gissp,
-		)
-		if err != nil {
-			return err
-		}
-		urls = append(urls, newURLs...)
+	urls, err := worker.GetURLSFromQuery(
+		logger,
+		redfinClient,
+		ctx.String("query"),
+		sp,
+		gissp,
+	)
+	if err != nil {
+		return err
 	}
 	for _, u := range urls {
 		fmt.Printf("%s\n", u)
