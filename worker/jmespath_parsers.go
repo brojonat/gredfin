@@ -35,19 +35,28 @@ func parseRealtorInfo(b []byte) (string, string, error) {
 	return name, company, nil
 }
 
-// parse the MLSInfo bytes and extract the price
-func parseListingPrice(b []byte) (int32, error) {
-	var data interface{}
-	if err := json.Unmarshal(b, &data); err != nil {
-		return 0, err
+func jmesParseInitialInfoParams(p string, data interface{}) (interface{}, error) {
+	if p == "property_id" {
+		return jmespath.Search("propertyId", data)
 	}
-	p, err := jmespath.Search("propertyHistoryInfo.events[0].price", data)
-	if err != nil {
-		return 0, err
+	if p == "listing_id" {
+		return jmespath.Search("listingId", data)
 	}
-	price, ok := p.(float64)
-	if !ok {
-		return 0, fmt.Errorf("invalid value for price: %s", p)
+	return "", fmt.Errorf("unsupported param: %s", p)
+}
+
+func jmesParseMLSParams(p string, data interface{}) (interface{}, error) {
+	if p == "zipcode" {
+		return jmespath.Search("publicRecordsInfo.addressInfo.zip", data)
 	}
-	return int32(price), nil
+	if p == "city" {
+		return jmespath.Search("publicRecordsInfo.addressInfo.city", data)
+	}
+	if p == "state" {
+		return jmespath.Search("publicRecordsInfo.addressInfo.state", data)
+	}
+	if p == "list_price" {
+		return jmespath.Search("propertyHistoryInfo.events[0].price", data)
+	}
+	return "", fmt.Errorf("unsupported param: %s", p)
 }

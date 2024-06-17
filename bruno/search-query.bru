@@ -1,11 +1,15 @@
 meta {
   name: /search-query
   type: http
-  seq: 5
+  seq: 3
 }
 
 get {
   url: {{ENDPOINT}}/search-query
   body: none
   auth: none
+}
+
+headers {
+  Authorization: Bearer {{AUTH_TOKEN}}
 }

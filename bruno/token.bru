@@ -1,7 +1,7 @@
 meta {
   name: /token
   type: http
-  seq: 2
+  seq: 1
 }
 
 post {
@@ -15,5 +15,5 @@ query {
 }
 
 headers {
-  Authorization: foobar123
+  Authorization: {{SERVER_SECRET_KEY}}
 }

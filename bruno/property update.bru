@@ -1,0 +1,23 @@
+meta {
+  name: /property update
+  type: http
+  seq: 9
+}
+
+put {
+  url: {{ENDPOINT}}/property-query
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{AUTH_TOKEN}}
+}
+
+body:json {
+  {
+    "property_id": 123,
+    "listing_id": 0,
+    "url": "foo.bar"
+  }
+}

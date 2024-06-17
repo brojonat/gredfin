@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"runtime"
@@ -21,10 +20,16 @@ type DefaultJSONResponse struct {
 func writeInternalError(l *slog.Logger, w http.ResponseWriter, e error) {
 	var pcs [1]uintptr
 	runtime.Callers(2, pcs[:]) // skip [Callers, Infof]
-	r := slog.NewRecord(time.Now(), slog.LevelError, fmt.Sprintf(e.Error()), pcs[0])
+	r := slog.NewRecord(time.Now(), slog.LevelError, e.Error(), pcs[0])
 	_ = l.Handler().Handle(context.Background(), r)
 	w.WriteHeader(http.StatusInternalServerError)
 	json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "internal error"})
+}
+
+func writeBadRequestError(w http.ResponseWriter, err error) {
+	w.WriteHeader(http.StatusBadRequest)
+	resp := DefaultJSONResponse{Error: err.Error()}
+	json.NewEncoder(w).Encode(resp)
 }
 
 func writeEmptyResultError(w http.ResponseWriter) {

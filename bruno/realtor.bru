@@ -10,6 +10,10 @@ get {
   auth: bearer
 }
 
+headers {
+  Authorization: Bearer {{AUTH_TOKEN}}
+}
+
 auth:bearer {
   token: {{AUTH_TOKEN}}
 }

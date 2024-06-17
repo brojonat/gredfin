@@ -40,24 +40,16 @@ func MakeSearchWorkerFunc(
 		l.Info("claimed query", "query", s.Query.String)
 
 		// run the query and get a list of Redfin URLs
-		sp := GetDefaultSearchParams()
-		gissp := GetDefaultGISCSVParams()
-		region_types := []string{"1", "2", "3", "4", "5", "6"}
-		urls := []string{}
-		for _, rt := range region_types {
-			gissp["region_type"] = rt
-			newURLs, err := GetURLSFromQuery(
-				l,
-				grc,
-				s.Query.String,
-				sp,
-				gissp,
-			)
-			if err != nil {
-				l.Error(err.Error())
-				return
-			}
-			urls = append(urls, newURLs...)
+		urls, err := GetURLSFromQuery(
+			l,
+			grc,
+			s.Query.String,
+			GetDefaultSearchParams(),
+			GetDefaultGISCSVParams(),
+		)
+		if err != nil {
+			l.Error(err.Error())
+			return
 		}
 
 		// for each URL, upload the property listing to the DB
@@ -189,6 +181,7 @@ func GetURLSFromQuery(
 	csvr.FieldsPerRecord = -1 // Allow variable number of fields
 	rows, err := csvr.ReadAll()
 	if err != nil {
+		l.Debug(fmt.Sprintf("%s", giscsvParams))
 		l.Error(string(b))
 		return nil, fmt.Errorf("error reading csv bytes: %w", err)
 	}
@@ -226,32 +219,103 @@ func addPropertyFromURL(
 	delay time.Duration,
 ) error {
 	ts_start := time.Now()
-	bii, err := grc.InitialInfo(
+	b, err := grc.InitialInfo(
 		strings.TrimPrefix(url, "https://www.redfin.com"),
 		map[string]string{},
 	)
 	if err != nil {
 		return fmt.Errorf("error getting initial_info: %w", err)
 	}
-
 	var res redfin.RedfinResponse
-	if err = json.Unmarshal(bii, &res); err != nil {
-		return fmt.Errorf("error serializing initial_info response: %w", err)
+	if err = json.Unmarshal(b, &res); err != nil {
+		return fmt.Errorf("error parsing initial_info response: %w", err)
 	}
-	var iip redfin.InitialInfoPayload
-	if err = json.Unmarshal(res.Payload, &iip); err != nil {
-		return fmt.Errorf("error serializing initial_info payload: %w", err)
+	var jmesdata interface{}
+	if err := json.Unmarshal(res.Payload, &jmesdata); err != nil {
+		return fmt.Errorf("error parsing initial_info data: %w", err)
+	}
+
+	// parse property_id
+	property_id, err := jmesParseInitialInfoParams("property_id", jmesdata)
+	if err != nil {
+		return fmt.Errorf("error searching for property_id: %w", err)
+	}
+	if property_id == nil {
+		return fmt.Errorf("null result extracting property_id")
+	}
+
+	// parse listing_id
+	listing_id, err := jmesParseInitialInfoParams("listing_id", jmesdata)
+	if err != nil {
+		return fmt.Errorf("error searching for listing_id: %w", err)
+	}
+	if listing_id == nil {
+		return fmt.Errorf("null result extracting listing_id")
+	}
+	pid, lid := int(property_id.(float64)), int(listing_id.(float64))
+
+	// get the mls data
+	b, err = grc.BelowTheFold(strconv.Itoa(pid), map[string]string{})
+	if err != nil {
+		return fmt.Errorf("error getting mls_info: %w", err)
+	}
+	if err = json.Unmarshal(b, &res); err != nil {
+		return fmt.Errorf("error serializing mls_info query response: %w", err)
+	}
+	if err := json.Unmarshal(res.Payload, &jmesdata); err != nil {
+		return fmt.Errorf("error unmarshaling mls_info payload data: %w", err)
+	}
+
+	// parse zipcode
+	zipcode, err := jmesParseMLSParams("zipcode", jmesdata)
+	if err != nil {
+		return fmt.Errorf("error searching for zipcode: %w", err)
+	}
+	if zipcode == nil {
+		return fmt.Errorf("null result extracting zipcode")
+	}
+
+	// parse city
+	city, err := jmesParseMLSParams("city", jmesdata)
+	if err != nil {
+		return fmt.Errorf("error searching for city %w", err)
+	}
+	if city == nil {
+		return fmt.Errorf("null result extracting city")
+	}
+
+	// parse state
+	state, err := jmesParseMLSParams("state", jmesdata)
+	if err != nil {
+		return fmt.Errorf("error searching for state %w", err)
+	}
+	if state == nil {
+		return fmt.Errorf("null result extracting state")
+	}
+
+	// parse listing price
+	lp, err := jmesParseMLSParams("list_price", jmesdata)
+	if err != nil {
+		return fmt.Errorf("error extracting list price: %w", err)
+	}
+	if lp == nil {
+		fmt.Println(string(b))
+		return fmt.Errorf("null result extracting list price")
 	}
 
 	p := &dbgen.CreatePropertyParams{
-		PropertyID: int32(iip.PropertyID),
-		ListingID:  int32(iip.ListingID),
+		PropertyID: int32(pid),
+		ListingID:  int32(lid),
 		URL:        pgtype.Text{String: url, Valid: true},
+		Zipcode:    pgtype.Text{String: zipcode.(string), Valid: true},
+		City:       pgtype.Text{String: city.(string), Valid: true},
+		State:      pgtype.Text{String: state.(string), Valid: true},
+		ListPrice:  int(lp.(float64)),
 	}
 	if err = createProperty(endpoint, h, p); err != nil {
 		return fmt.Errorf(
 			"error creating property (property_id: %d, listing_id: %d, url: %s): %w",
-			iip.PropertyID, iip.ListingID, url, err,
+			pid, lid, url, err,
 		)
 	}
 

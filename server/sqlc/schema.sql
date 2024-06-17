@@ -2,6 +2,10 @@ CREATE TABLE property (
   property_id INT,
   listing_id INT,
   url VARCHAR(128),
+  zipcode VARCHAR(5),
+  city VARCHAR(128),
+  state VARCHAR(32),
+  list_price INT,
   last_scrape_ts TIMESTAMP DEFAULT '19700101 00:00:00'::TIMESTAMP,
   last_scrape_status VARCHAR(16) DEFAULT 'good',
   last_scrape_checksums JSONB NOT NULL DEFAULT '{}'::JSONB,
@@ -18,13 +22,12 @@ CREATE TABLE search (
 
 CREATE TABLE realtor (
   realtor_id SERIAL,
-  name VARCHAR(64),
-  company VARCHAR(64),
+  name VARCHAR(128),
+  company VARCHAR(128),
   property_id INT,
   listing_id INT,
-  list_price INT,
   created_ts TIMESTAMP NOT NULL DEFAULT '19700101 00:00:00'::TIMESTAMP,
-  FOREIGN KEY (property_id, listing_id) REFERENCES property (property_id, listing_id),
-  PRIMARY KEY (name, property_id, listing_id, list_price),
+  FOREIGN KEY (property_id, listing_id) REFERENCES property (property_id, listing_id) ON DELETE CASCADE,
+  PRIMARY KEY (name, property_id, listing_id),
   UNIQUE (realtor_id)
 );

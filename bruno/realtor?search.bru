@@ -1,0 +1,19 @@
+meta {
+  name: /realtor?search
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{ENDPOINT}}/realtor?search=am
+  body: none
+  auth: none
+}
+
+query {
+  search: am
+}
+
+headers {
+  Authorization: {{AUTH_TOKEN}}
+}

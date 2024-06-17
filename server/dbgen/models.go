@@ -13,6 +13,10 @@ type Property struct {
 	PropertyID          int32                        `json:"property_id"`
 	ListingID           int32                        `json:"listing_id"`
 	URL                 pgtype.Text                  `json:"url"`
+	Zipcode             pgtype.Text                  `json:"zipcode"`
+	City                pgtype.Text                  `json:"city"`
+	State               pgtype.Text                  `json:"state"`
+	ListPrice           int                          `json:"list_price"`
 	LastScrapeTs        pgtype.Timestamp             `json:"last_scrape_ts"`
 	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
 	LastScrapeChecksums jsonb.PropertyScrapeMetadata `json:"last_scrape_checksums"`
@@ -24,7 +28,6 @@ type Realtor struct {
 	Company    string           `json:"company"`
 	PropertyID int32            `json:"property_id"`
 	ListingID  int32            `json:"listing_id"`
-	ListPrice  int32            `json:"list_price"`
 	CreatedTs  pgtype.Timestamp `json:"created_ts"`
 }
 

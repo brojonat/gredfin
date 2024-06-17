@@ -154,11 +154,6 @@ func handlePropertyQueryUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries
 			return
 		}
 
-		if updateData.PropertyID == 0 || updateData.ListingID == 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "must specify property_id, listing_id, and status"})
-			return
-		}
 		tx, err := p.Begin(r.Context())
 		if err != nil {
 			writeInternalError(l, w, err)
@@ -185,6 +180,10 @@ func handlePropertyQueryUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries
 			PropertyID:          updateData.PropertyID,
 			ListingID:           updateData.ListingID,
 			URL:                 current.URL,
+			Zipcode:             current.Zipcode,
+			City:                current.City,
+			State:               current.State,
+			ListPrice:           current.ListPrice,
 			LastScrapeTs:        pgtype.Timestamp{Time: time.Now(), Valid: true},
 			LastScrapeStatus:    current.LastScrapeStatus,
 			LastScrapeChecksums: current.LastScrapeChecksums,

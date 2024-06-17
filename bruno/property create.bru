@@ -1,0 +1,22 @@
+meta {
+  name: /property create
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{ENDPOINT}}/property-query
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{AUTH_TOKEN}}
+}
+
+body:json {
+  {
+    "property_id": 123, 
+    "listing_id": 0
+  }
+}

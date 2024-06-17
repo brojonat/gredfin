@@ -1,25 +1,68 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/brojonat/gredfin/server/dbgen"
 	"github.com/jackc/pgx/v5"
 )
 
+// helper interface for searching realtors while we tinker with the underlying inmplementation
+func searchRealtors(ctx context.Context, q *dbgen.Queries, s string) ([]dbgen.ListRealtorsRow, error) {
+	if s == "" {
+		return q.ListRealtors(ctx)
+	}
+	rs, err := q.ListRealtors(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	keep := []dbgen.ListRealtorsRow{}
+	s = strings.ToLower(s)
+	for _, r := range rs {
+		normName := strings.ToLower(r.Name)
+		normCompany := strings.ToLower(r.Company)
+		// other strings like zipcode, month, etc...
+
+		if strings.Contains(normName, s) {
+			keep = append(keep, r)
+			continue
+		}
+		if strings.Contains(normCompany, s) {
+			keep = append(keep, r)
+			continue
+		}
+		// other contains conditions...
+	}
+	return keep, nil
+}
+
 func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		realtorID := r.URL.Query().Get("realtor_id")
-		name := r.URL.Query().Get("realtor_name")
+		realtorID := r.URL.Query().Get("id")
+		name := r.URL.Query().Get("name")
+		search := r.URL.Query().Get("search")
+		pi := r.URL.Query().Get("property_info")
+		var details bool
+		var err error
+		if pi != "" {
+			details, err = strconv.ParseBool(pi)
+			if err != nil {
+				writeBadRequestError(w, err)
+				return
+			}
+		}
 
 		// no identifiers, return whole listing
 		if realtorID == "" && name == "" {
-			rs, err := q.ListRealtors(r.Context())
-			if err == pgx.ErrNoRows {
+			rs, err := searchRealtors(r.Context(), q, search)
+			if err == pgx.ErrNoRows || len(rs) == 0 {
 				writeEmptyResultError(w)
 				return
 			}
@@ -32,7 +75,7 @@ func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			return
 		}
 
-		// realtor_id specified, return realtor entries under that ID
+		// realtor_id specified, return the specific row
 		if realtorID != "" {
 			rid, err := strconv.Atoi(realtorID)
 			if err != nil {
@@ -55,23 +98,47 @@ func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 
 		// Name specified, return realtor entries under that name. NOTE: there
 		// may be multiple realtors with the same name; callers can filter on
-		// company if necessary
+		// company if necessary.
 		if name != "" {
-			rs, err := q.GetRealtorPropertiesByName(r.Context(), name)
-			if err == pgx.ErrNoRows {
-				writeEmptyResultError(w)
+			if details {
+				writeRealtorPropertiesFull(r.Context(), l, q, w, name)
 				return
 			}
-			if err != nil {
-				writeInternalError(l, w, err)
-				return
-			}
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(rs)
+			writeRealtorProperties(r.Context(), l, q, w, name)
 			return
 		}
 
 	}
+}
+
+func writeRealtorProperties(ctx context.Context, l *slog.Logger, q *dbgen.Queries, w http.ResponseWriter, name string) {
+	rs, err := q.GetRealtorPropertiesByName(ctx, name)
+	if err == pgx.ErrNoRows {
+		writeEmptyResultError(w)
+		return
+	}
+	if err != nil {
+		writeInternalError(l, w, err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(rs)
+	return
+}
+
+func writeRealtorPropertiesFull(ctx context.Context, l *slog.Logger, q *dbgen.Queries, w http.ResponseWriter, name string) {
+	rs, err := q.GetRealtorPropertiesFullByName(ctx, name)
+	if err == pgx.ErrNoRows {
+		writeEmptyResultError(w)
+		return
+	}
+	if err != nil {
+		writeInternalError(l, w, err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(rs)
+	return
 }
 
 func handleRealtorPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {

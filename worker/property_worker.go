@@ -274,14 +274,9 @@ func handlePropertyBytes(end string, h http.Header, l *slog.Logger, p *dbgen.Pro
 	if err != nil {
 		return fmt.Errorf("error extracting realtor: %w", err)
 	}
-	lp, err := parseListingPrice(mlsb)
-	if err != nil {
-		return fmt.Errorf("error extracting list price: %w", err)
-	}
 	r := dbgen.CreateRealtorParams{
 		PropertyID: p.PropertyID,
 		ListingID:  p.ListingID,
-		ListPrice:  lp,
 		Name:       name,
 		Company:    company,
 	}
