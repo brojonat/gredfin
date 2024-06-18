@@ -385,7 +385,7 @@ func createProperty(endpoint string, h http.Header, c *dbgen.CreatePropertyParam
 	}
 	req, err := http.NewRequest(
 		http.MethodPost,
-		fmt.Sprintf("%s/property-query", endpoint),
+		fmt.Sprintf("%s/property", endpoint),
 		bytes.NewReader(b),
 	)
 	if err != nil {
@@ -406,7 +406,7 @@ func createProperty(endpoint string, h http.Header, c *dbgen.CreatePropertyParam
 func updateProperty(endpoint string, h http.Header, b []byte) error {
 	req, err := http.NewRequest(
 		http.MethodPut,
-		fmt.Sprintf("%s/property-query", endpoint),
+		fmt.Sprintf("%s/property", endpoint),
 		bytes.NewReader(b),
 	)
 	if err != nil {

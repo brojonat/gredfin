@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{ENDPOINT}}/property-query
+  url: {{ENDPOINT}}/property
   body: json
   auth: none
 }
@@ -16,7 +16,7 @@ headers {
 
 body:json {
   {
-    "property_id": 123, 
+    "property_id": 123,
     "listing_id": 0
   }
 }

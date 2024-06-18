@@ -14,7 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func AddPropertyQuery(ctx context.Context, l *slog.Logger, endpoint, authToken, property_id, listing_id, url string) error {
+func AddProperty(ctx context.Context, l *slog.Logger, endpoint, authToken, property_id, listing_id, url string) error {
 	pid, err := strconv.Atoi(property_id)
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func AddPropertyQuery(ctx context.Context, l *slog.Logger, endpoint, authToken, 
 	}
 	req, err := http.NewRequest(
 		http.MethodPost,
-		fmt.Sprintf("%s/property-query", endpoint),
+		fmt.Sprintf("%s/property", endpoint),
 		bytes.NewReader(b),
 	)
 	if err != nil {

@@ -26,7 +26,7 @@ type PropertyScrapeMetadata struct {
 	AVMHash         string `json:"avm_hash"`
 }
 
-func handlePropertyQueryGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+func handlePropertyGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		propertyID := r.URL.Query().Get("property_id")
 		listingID := r.URL.Query().Get("listing_id")
@@ -103,7 +103,7 @@ func handlePropertyQueryGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	}
 }
 
-func handlePropertyQueryPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+func handlePropertyPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var p dbgen.CreatePropertyParams
 		err := decodeJSONBody(r, &p)
@@ -133,7 +133,7 @@ func handlePropertyQueryPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc 
 // Gets the current property with the supplied property_id and listing_id, then
 // for each field that is specified in the input, updates the current with the
 // specified data, then writes the resulting object to the model.
-func handlePropertyQueryUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.HandlerFunc {
+func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.HandlerFunc {
 	type propertyUpdate struct {
 		dbgen.CreatePropertyParams
 		PropertyScrapeMetadata
@@ -222,7 +222,7 @@ func handlePropertyQueryUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries
 	}
 }
 
-func handlePropertyQueryDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+func handlePropertyDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		propertyID := r.URL.Query().Get("property_id")
 		listingID := r.URL.Query().Get("listing_id")
@@ -281,7 +281,7 @@ func handlePropertyQueryDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFun
 }
 
 // claims the next property to be scraped and sets the status to pending
-func handlePropertyQueryClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.HandlerFunc {
+func handlePropertyClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tx, err := p.Begin(r.Context())
 		if err != nil {

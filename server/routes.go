@@ -49,57 +49,57 @@ func getRootHandler(
 	))
 
 	// search CRUDL routes
-	mux.HandleFunc("GET /search-query", adaptHandler(
-		handleSearchQueryGet(l, q),
+	mux.HandleFunc("GET /search", adaptHandler(
+		handleSearchGet(l, q),
 		apiMode(l, maxBytes, allowedOrigins),
 		mustAuth(),
 	))
-	mux.HandleFunc("POST /search-query", adaptHandler(
-		handleSearchQueryPost(l, q),
+	mux.HandleFunc("POST /search", adaptHandler(
+		handleSearchPost(l, q),
 		apiMode(l, maxBytes, allowedOrigins),
 		mustAuth(),
 	))
-	mux.HandleFunc("DELETE /search-query", adaptHandler(
-		handleSearchQueryDelete(l, q),
+	mux.HandleFunc("DELETE /search", adaptHandler(
+		handleSearchDelete(l, q),
 		apiMode(l, maxBytes, allowedOrigins),
 		mustAuth(),
 	))
 
 	// property CRUDL routes
-	mux.HandleFunc("GET /property-query", adaptHandler(
-		handlePropertyQueryGet(l, q),
+	mux.HandleFunc("GET /property", adaptHandler(
+		handlePropertyGet(l, q),
 		apiMode(l, maxBytes, allowedOrigins),
 		mustAuth(),
 	))
-	mux.HandleFunc("POST /property-query", adaptHandler(
-		handlePropertyQueryPost(l, q),
+	mux.HandleFunc("POST /property", adaptHandler(
+		handlePropertyPost(l, q),
 		apiMode(l, maxBytes, allowedOrigins),
 		mustAuth(),
 	))
-	mux.HandleFunc("PUT /property-query", adaptHandler(
-		handlePropertyQueryUpdate(l, p, q),
+	mux.HandleFunc("PUT /property", adaptHandler(
+		handlePropertyUpdate(l, p, q),
 		apiMode(l, maxBytes, allowedOrigins),
 		mustAuth(),
 	))
-	mux.HandleFunc("DELETE /property-query", adaptHandler(
-		handlePropertyQueryDelete(l, q),
+	mux.HandleFunc("DELETE /property", adaptHandler(
+		handlePropertyDelete(l, q),
 		apiMode(l, maxBytes, allowedOrigins),
 		mustAuth(),
 	))
 
 	// search worker routes
 	mux.HandleFunc("POST /search-query/claim-next", adaptHandler(
-		handleSearchQueryClaimNext(l, p, q),
+		handleSearchClaimNext(l, p, q),
 		apiMode(l, maxBytes, allowedOrigins),
 		mustAuth(),
 	))
 	mux.HandleFunc("POST /search-query/set-status", adaptHandler(
-		handleSearchQuerySetStatus(l, q),
+		handleSearchSetStatus(l, q),
 		mustAuth(),
 	))
 	// property worker routes
 	mux.HandleFunc("POST /property-query/claim-next", adaptHandler(
-		handlePropertyQueryClaimNext(l, p, q),
+		handlePropertyClaimNext(l, p, q),
 		apiMode(l, maxBytes, allowedOrigins),
 		mustAuth(),
 	))

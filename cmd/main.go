@@ -373,7 +373,7 @@ func test_search_query(ctx *cli.Context) error {
 
 func add_property_query(ctx *cli.Context) error {
 	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
-	return AddPropertyQuery(
+	return AddProperty(
 		ctx.Context,
 		logger,
 		ctx.String("server-endpoint"),

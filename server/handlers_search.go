@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func handleSearchQueryGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+func handleSearchGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		search_id := r.URL.Query().Get("search_id")
 		search_query := r.URL.Query().Get("search_query")
@@ -71,7 +71,7 @@ func handleSearchQueryGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	}
 }
 
-func handleSearchQueryPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+func handleSearchPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var p pgtype.Text
 		err := decodeJSONBody(r, &p)
@@ -95,7 +95,7 @@ func handleSearchQueryPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	}
 }
 
-func handleSearchQueryDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+func handleSearchDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		search_id := r.URL.Query().Get("search_id")
 		search_query := r.URL.Query().Get("search_query")
@@ -135,7 +135,7 @@ func handleSearchQueryDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc 
 	}
 }
 
-func handleSearchQueryClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.HandlerFunc {
+func handleSearchClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tx, err := p.Begin(r.Context())
 		if err != nil {
@@ -174,7 +174,7 @@ func handleSearchQueryClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Querie
 	}
 }
 
-func handleSearchQuerySetStatus(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+func handleSearchSetStatus(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		search_id := r.URL.Query().Get("search_id")
 		status := r.URL.Query().Get("status")

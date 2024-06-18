@@ -19,7 +19,7 @@ func AddSeachQuery(ctx context.Context, l *slog.Logger, endpoint, authToken, q s
 	}
 	req, err := http.NewRequest(
 		http.MethodPost,
-		fmt.Sprintf("%s/search-query", endpoint),
+		fmt.Sprintf("%s/search", endpoint),
 		bytes.NewReader(b),
 	)
 	if err != nil {
