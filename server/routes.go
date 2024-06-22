@@ -3,6 +3,8 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/brojonat/gredfin/server/dbgen"
@@ -16,10 +18,18 @@ func getRootHandler(
 	s3 *s3.Client,
 ) http.Handler {
 	mux := http.NewServeMux()
-	allowedOrigins := []string{}
+	ogs := os.Getenv("ALLOWED_ORIGINS")
+	allowedOrigins := strings.Split(ogs, ",")
+	for i, s := range allowedOrigins {
+		allowedOrigins[i] = strings.ReplaceAll(s, " ", "")
+	}
 	maxBytes := int64(1048576)
 
 	// helper routes
+	mux.HandleFunc("OPTIONS /", adaptHandler(
+		func(w http.ResponseWriter, r *http.Request) {},
+		apiMode(l, maxBytes, allowedOrigins),
+	))
 	mux.HandleFunc("GET /ping", adaptHandler(
 		handlePing(l, p),
 		apiMode(l, maxBytes, allowedOrigins),
