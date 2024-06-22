@@ -31,15 +31,15 @@ func adaptHandler(h http.HandlerFunc, opts ...handlerAdapter) http.HandlerFunc {
 // handler. This will make the handler gracefully handle panics, sets the
 // content type to application/json, limits the body size that clients can send,
 // wraps the handler with the usual CORS settings.
-func apiMode(l *slog.Logger, maxBytes int64, origins []string) handlerAdapter {
+func apiMode(l *slog.Logger, maxBytes int64, headers, methods, origins []string) handlerAdapter {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			next = makeGraceful(l)(next)
 			next = setMaxBytesReader(maxBytes)(next)
 			next = setContentType("application/json")(next)
 			handlers.CORS(
-				handlers.AllowedHeaders([]string{"Access-Control-Allow-Origin", "Authorization", "Content-Type", "ngrok-skip-browser-warning"}),
-				handlers.AllowedMethods([]string{"OPTIONS", "GET", "POST", "PUT", "DELETE"}),
+				handlers.AllowedHeaders(headers),
+				handlers.AllowedMethods(methods),
 				handlers.AllowedOrigins(origins),
 			)(next).ServeHTTP(w, r)
 		}
