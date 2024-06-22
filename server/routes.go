@@ -69,6 +69,11 @@ func getRootHandler(
 		apiMode(l, maxBytes, headers, methods, origins),
 		mustAuth(),
 	))
+	mux.HandleFunc("GET /realtor-plot", adaptHandler(
+		handleRealtorPriceDistPlot(l, q),
+		apiMode(l, maxBytes, headers, methods, origins),
+		mustAuth(),
+	))
 
 	// search CRUDL routes
 	mux.HandleFunc("GET /search", adaptHandler(

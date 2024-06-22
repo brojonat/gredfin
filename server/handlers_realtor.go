@@ -229,3 +229,35 @@ func handleRealtorDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
 	}
 }
+
+// returns HTML that clients can use to display a D3 plot.
+func handleRealtorPriceDistPlot(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.URL.Query().Get("name")
+		if name == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "must supply realtor name"})
+			return
+		}
+		// // rs, err := q.GetRealtorPropertiesByName(r.Context(), name)
+		// if err == pgx.ErrNoRows {
+		// 	writeEmptyResultError(w)
+		// 	return
+		// }
+		// if err != nil {
+		// 	writeInternalError(l, w, err)
+		// 	return
+		// }
+		res := []struct {
+			X []float64
+			Y []float64
+		}{
+			{
+				[]float64{0, 1, 2, 3, 4, 5},
+				[]float64{11, 12, 13, 14, 15},
+			},
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(res)
+	}
+}
