@@ -9,15 +9,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/brojonat/gredfin/redfin"
 	"github.com/brojonat/gredfin/server/dbgen"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/twpayne/go-geos"
 	pgxgeos "github.com/twpayne/pgx-geos"
 )
 
 func getConnPool(ctx context.Context, url string) (*pgxpool.Pool, error) {
-	dummy, err := pgxpool.New(ctx, url)
-	cfg := dummy.Config()
+	cfg, err := pgxpool.ParseConfig(url)
+	if err != nil {
+		return nil, err
+	}
 	cfg.AfterConnect = func(ctx context.Context, c *pgx.Conn) error {
 		if err := pgxgeos.Register(ctx, c, geos.NewContext()); err != nil {
 			return err

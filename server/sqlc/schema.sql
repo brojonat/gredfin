@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS postgis;
+
 CREATE TABLE property (
   property_id INT,
   listing_id INT,
@@ -5,7 +7,7 @@ CREATE TABLE property (
   zipcode VARCHAR(5),
   city VARCHAR(128),
   state VARCHAR(32),
-  location geometry(Point, 4326),
+  location GEOGRAPHY(Point, 4326),
   list_price INT,
   last_scrape_ts TIMESTAMP DEFAULT '19700101 00:00:00'::TIMESTAMP,
   last_scrape_status VARCHAR(16) DEFAULT 'good',

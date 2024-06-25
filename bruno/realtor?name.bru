@@ -5,7 +5,16 @@ meta {
 }
 
 get {
-  url: {{ENDPOINT}}/realtor
+  url: {{ENDPOINT}}/realtor?name=The Nancy Jenkins Team&property_info=True
   body: none
   auth: none
+}
+
+query {
+  name: The Nancy Jenkins Team
+  property_info: True
+}
+
+headers {
+  Authorization: Bearer {{AUTH_TOKEN}}
 }
