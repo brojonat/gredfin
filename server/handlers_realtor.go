@@ -123,7 +123,6 @@ func writeRealtorProperties(ctx context.Context, l *slog.Logger, q *dbgen.Querie
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(rs)
-	return
 }
 
 func writeRealtorPropertiesFull(ctx context.Context, l *slog.Logger, q *dbgen.Queries, w http.ResponseWriter, name string) {
@@ -138,7 +137,6 @@ func writeRealtorPropertiesFull(ctx context.Context, l *slog.Logger, q *dbgen.Qu
 	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(rs)
-	return
 }
 
 func handleRealtorPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
@@ -239,23 +237,16 @@ func handleRealtorPriceDistPlot(l *slog.Logger, q *dbgen.Queries) http.HandlerFu
 			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "must supply realtor name"})
 			return
 		}
-		// // rs, err := q.GetRealtorPropertiesByName(r.Context(), name)
-		// if err == pgx.ErrNoRows {
-		// 	writeEmptyResultError(w)
-		// 	return
-		// }
-		// if err != nil {
-		// 	writeInternalError(l, w, err)
-		// 	return
-		// }
 		res := []struct {
-			X []float64
-			Y []float64
+			X float64 `json:"xData"`
+			Y float64 `json:"yData"`
 		}{
-			{
-				[]float64{0, 1, 2, 3, 4, 5},
-				[]float64{11, 12, 13, 14, 15},
-			},
+			{0, 0},
+			{1, 10},
+			{2, 25},
+			{3, 33},
+			{4, 38},
+			{5, 55},
 		}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(res)

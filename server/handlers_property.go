@@ -1,13 +1,11 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -176,9 +174,10 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 			writeInternalError(l, w, err)
 			return
 		}
+		// default the update data to the existing data
 		pd := dbgen.PutPropertyParams{
-			PropertyID:          updateData.PropertyID,
-			ListingID:           updateData.ListingID,
+			PropertyID:          current.PropertyID,
+			ListingID:           current.ListingID,
 			URL:                 current.URL,
 			Zipcode:             current.Zipcode,
 			City:                current.City,
@@ -371,24 +370,4 @@ func handleGetPresignedPutURL(l *slog.Logger, s3c *s3.Client, q *dbgen.Queries) 
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: presignedPutRequest.URL})
 	}
-}
-
-func getPropertyBucket() (string, error) {
-	b := os.Getenv("S3_PROPERTY_BUCKET")
-	if b == "" {
-		return "", fmt.Errorf("s3 property bucket not set")
-	}
-	return b, nil
-}
-
-func getPropertyKey(ctx context.Context, q *dbgen.Queries, pid, lid int32, basename string) (string, error) {
-	p, err := q.GetProperty(ctx, dbgen.GetPropertyParams{PropertyID: pid, ListingID: lid})
-	if err != nil {
-		return "", err
-	}
-	addr := strings.TrimPrefix(p.URL.String, "https://www.redfin.com/")
-	if addr == p.URL.String {
-		return "", fmt.Errorf("unable to parse url to address %s", p.URL.String)
-	}
-	return fmt.Sprintf("property/%s/%d_%d_%d_%s", addr, pid, lid, time.Now().Unix(), basename), nil
 }
