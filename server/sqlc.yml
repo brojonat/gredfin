@@ -28,3 +28,10 @@ sql:
             go_type: "string"
           - column: "property.list_price"
             go_type: "int"
+          - column: "property.location"
+            go_type:
+              import: "github.com/twpayne/go-geos"
+              package: "geos"
+              pointer: true
+              type: "Geom"
+            null: true

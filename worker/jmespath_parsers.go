@@ -42,6 +42,12 @@ func jmesParseInitialInfoParams(p string, data interface{}) (interface{}, error)
 	if p == "listing_id" {
 		return jmespath.Search("listingId", data)
 	}
+	if p == "latitude" {
+		return jmespath.Search("latlong.latitude", data)
+	}
+	if p == "longitude" {
+		return jmespath.Search("latlong.longitude", data)
+	}
 	return "", fmt.Errorf("unsupported param: %s", p)
 }
 

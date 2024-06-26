@@ -7,6 +7,7 @@ package dbgen
 import (
 	jsonb "github.com/brojonat/gredfin/server/dbgen/jsonb"
 	"github.com/jackc/pgx/v5/pgtype"
+	geos "github.com/twpayne/go-geos"
 )
 
 type Property struct {
@@ -16,6 +17,7 @@ type Property struct {
 	Zipcode             pgtype.Text                  `json:"zipcode"`
 	City                pgtype.Text                  `json:"city"`
 	State               pgtype.Text                  `json:"state"`
+	Location            *geos.Geom                   `json:"location"`
 	ListPrice           int                          `json:"list_price"`
 	LastScrapeTs        pgtype.Timestamp             `json:"last_scrape_ts"`
 	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`

@@ -10,6 +10,7 @@ import (
 
 	jsonb "github.com/brojonat/gredfin/server/dbgen/jsonb"
 	"github.com/jackc/pgx/v5/pgtype"
+	geos "github.com/twpayne/go-geos"
 )
 
 const createRealtor = `-- name: CreateRealtor :exec
@@ -64,7 +65,7 @@ func (q *Queries) DeleteRealtorListing(ctx context.Context, arg DeleteRealtorLis
 }
 
 const getRealtorProperties = `-- name: GetRealtorProperties :many
-SELECT realtor_id, name, company, r.property_id, r.listing_id, created_ts, p.property_id, p.listing_id, url, zipcode, city, state, list_price, last_scrape_ts, last_scrape_status, last_scrape_checksums, p.list_price
+SELECT realtor_id, name, company, r.property_id, r.listing_id, created_ts, p.property_id, p.listing_id, url, zipcode, city, state, location, list_price, last_scrape_ts, last_scrape_status, last_scrape_checksums, p.list_price
 FROM realtor r
 INNER JOIN property p
   ON r.property_id = p.property_id AND r.listing_id = p.listing_id
@@ -84,6 +85,7 @@ type GetRealtorPropertiesRow struct {
 	Zipcode             pgtype.Text                  `json:"zipcode"`
 	City                pgtype.Text                  `json:"city"`
 	State               pgtype.Text                  `json:"state"`
+	Location            *geos.Geom                   `json:"location"`
 	ListPrice           int                          `json:"list_price"`
 	LastScrapeTs        pgtype.Timestamp             `json:"last_scrape_ts"`
 	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
@@ -113,6 +115,7 @@ func (q *Queries) GetRealtorProperties(ctx context.Context, realtorID int32) ([]
 			&i.Zipcode,
 			&i.City,
 			&i.State,
+			&i.Location,
 			&i.ListPrice,
 			&i.LastScrapeTs,
 			&i.LastScrapeStatus,
@@ -130,7 +133,7 @@ func (q *Queries) GetRealtorProperties(ctx context.Context, realtorID int32) ([]
 }
 
 const getRealtorPropertiesByName = `-- name: GetRealtorPropertiesByName :many
-SELECT realtor_id, name, company, r.property_id, r.listing_id, created_ts, p.property_id, p.listing_id, url, zipcode, city, state, list_price, last_scrape_ts, last_scrape_status, last_scrape_checksums, p.list_price
+SELECT realtor_id, name, company, r.property_id, r.listing_id, created_ts, p.property_id, p.listing_id, url, zipcode, city, state, location, list_price, last_scrape_ts, last_scrape_status, last_scrape_checksums, p.list_price
 FROM realtor r
 INNER JOIN property p
   ON r.property_id = p.property_id AND r.listing_id = p.listing_id
@@ -150,6 +153,7 @@ type GetRealtorPropertiesByNameRow struct {
 	Zipcode             pgtype.Text                  `json:"zipcode"`
 	City                pgtype.Text                  `json:"city"`
 	State               pgtype.Text                  `json:"state"`
+	Location            *geos.Geom                   `json:"location"`
 	ListPrice           int                          `json:"list_price"`
 	LastScrapeTs        pgtype.Timestamp             `json:"last_scrape_ts"`
 	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
@@ -179,6 +183,7 @@ func (q *Queries) GetRealtorPropertiesByName(ctx context.Context, name string) (
 			&i.Zipcode,
 			&i.City,
 			&i.State,
+			&i.Location,
 			&i.ListPrice,
 			&i.LastScrapeTs,
 			&i.LastScrapeStatus,
@@ -196,7 +201,7 @@ func (q *Queries) GetRealtorPropertiesByName(ctx context.Context, name string) (
 }
 
 const getRealtorPropertiesFullByName = `-- name: GetRealtorPropertiesFullByName :many
-SELECT realtor_id, name, company, r.property_id, r.listing_id, created_ts, p.property_id, p.listing_id, url, zipcode, city, state, list_price, last_scrape_ts, last_scrape_status, last_scrape_checksums
+SELECT realtor_id, name, company, r.property_id, r.listing_id, created_ts, p.property_id, p.listing_id, url, zipcode, city, state, location, list_price, last_scrape_ts, last_scrape_status, last_scrape_checksums
 FROM realtor r
 INNER JOIN property p
   ON r.property_id = p.property_id AND r.listing_id = p.listing_id
@@ -216,6 +221,7 @@ type GetRealtorPropertiesFullByNameRow struct {
 	Zipcode             pgtype.Text                  `json:"zipcode"`
 	City                pgtype.Text                  `json:"city"`
 	State               pgtype.Text                  `json:"state"`
+	Location            *geos.Geom                   `json:"location"`
 	ListPrice           int                          `json:"list_price"`
 	LastScrapeTs        pgtype.Timestamp             `json:"last_scrape_ts"`
 	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
@@ -244,6 +250,7 @@ func (q *Queries) GetRealtorPropertiesFullByName(ctx context.Context, name strin
 			&i.Zipcode,
 			&i.City,
 			&i.State,
+			&i.Location,
 			&i.ListPrice,
 			&i.LastScrapeTs,
 			&i.LastScrapeStatus,
@@ -260,7 +267,7 @@ func (q *Queries) GetRealtorPropertiesFullByName(ctx context.Context, name strin
 }
 
 const listRealtors = `-- name: ListRealtors :many
-SELECT realtor_id, name, company, r.property_id, r.listing_id, created_ts, p.property_id, p.listing_id, url, zipcode, city, state, list_price, last_scrape_ts, last_scrape_status, last_scrape_checksums, p.list_price
+SELECT realtor_id, name, company, r.property_id, r.listing_id, created_ts, p.property_id, p.listing_id, url, zipcode, city, state, location, list_price, last_scrape_ts, last_scrape_status, last_scrape_checksums, p.list_price
 FROM realtor r
 INNER JOIN property p
   ON r.property_id = p.property_id AND r.listing_id = p.listing_id
@@ -280,6 +287,7 @@ type ListRealtorsRow struct {
 	Zipcode             pgtype.Text                  `json:"zipcode"`
 	City                pgtype.Text                  `json:"city"`
 	State               pgtype.Text                  `json:"state"`
+	Location            *geos.Geom                   `json:"location"`
 	ListPrice           int                          `json:"list_price"`
 	LastScrapeTs        pgtype.Timestamp             `json:"last_scrape_ts"`
 	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
@@ -309,6 +317,7 @@ func (q *Queries) ListRealtors(ctx context.Context) ([]ListRealtorsRow, error) {
 			&i.Zipcode,
 			&i.City,
 			&i.State,
+			&i.Location,
 			&i.ListPrice,
 			&i.LastScrapeTs,
 			&i.LastScrapeStatus,

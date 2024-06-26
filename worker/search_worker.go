@@ -17,12 +17,13 @@ import (
 	"github.com/brojonat/gredfin/server"
 	"github.com/brojonat/gredfin/server/dbgen"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/twpayne/go-geos"
 )
 
 // Default implementation of a Search scrape worker. The worker pulls a search
 // query from the service and runs the query against the Redfin API. A list of
-// URLs is extracted from the result and for each URL, another query is
-// performed against the Redfin API (with spacing/delay set by `pqd`).
+// URLs is extracted from the result and for each URL, a series of queries is
+// performed against the RefinAPI
 func MakeSearchWorkerFunc(
 	endpoint string,
 	authToken string,
@@ -254,6 +255,25 @@ func addPropertyFromURL(
 	}
 	pid, lid := int(property_id.(float64)), int(listing_id.(float64))
 
+	// parse lat/long
+	lat, err := jmesParseInitialInfoParams("latitude", jmesdata)
+	if err != nil {
+		return fmt.Errorf("error searching for latitude: %w", err)
+	}
+	if lat == nil {
+		return fmt.Errorf("null result extracting latitude")
+	}
+	long, err := jmesParseInitialInfoParams("longitude", jmesdata)
+	if err != nil {
+		return fmt.Errorf("error searching for longitude: %w", err)
+	}
+	if long == nil {
+		return fmt.Errorf("null result extracting longitude")
+	}
+	latitude, longitude := lat.(float64), long.(float64)
+
+	// FIXME: shouldn't this stop here? And let the property worker handle the rest?
+
 	// get the mls data
 	b, err = grc.BelowTheFold(strconv.Itoa(pid), map[string]string{})
 	if err != nil {
@@ -310,6 +330,7 @@ func addPropertyFromURL(
 		Zipcode:    pgtype.Text{String: zipcode.(string), Valid: true},
 		City:       pgtype.Text{String: city.(string), Valid: true},
 		State:      pgtype.Text{String: state.(string), Valid: true},
+		Location:   geos.NewPoint([]float64{latitude, longitude}),
 		ListPrice:  int(lp.(float64)),
 	}
 	if err = createProperty(endpoint, h, p); err != nil {
