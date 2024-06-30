@@ -11,9 +11,9 @@ WHERE query = $1;
 -- supplied slice. Rows are locked for update; callers are expected to set
 -- status rows to PENDING after retrieving rows.
 SELECT * FROM search
-WHERE last_scrape_status = ANY($2::VARCHAR[])
+WHERE last_scrape_status = ANY(sqlc.arg(statuses)::VARCHAR[])
 ORDER BY NOW()::timestamp - last_scrape_ts DESC
-LIMIT $1
+LIMIT sqlc.arg(count)
 FOR UPDATE;
 
 -- name: ListSearches :many

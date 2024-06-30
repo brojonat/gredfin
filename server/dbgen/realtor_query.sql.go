@@ -8,9 +8,8 @@ package dbgen
 import (
 	"context"
 
-	jsonb "github.com/brojonat/gredfin/server/dbgen/jsonb"
 	"github.com/jackc/pgx/v5/pgtype"
-	geos "github.com/twpayne/go-geos"
+	geometry "github.com/twpayne/go-geos/geometry"
 )
 
 const createRealtor = `-- name: CreateRealtor :exec
@@ -65,32 +64,38 @@ func (q *Queries) DeleteRealtorListing(ctx context.Context, arg DeleteRealtorLis
 }
 
 const getRealtorProperties = `-- name: GetRealtorProperties :many
-SELECT realtor_id, name, company, r.property_id, r.listing_id, created_ts, p.property_id, p.listing_id, url, zipcode, city, state, location, list_price, last_scrape_ts, last_scrape_status, last_scrape_checksums, p.list_price
+SELECT
+  r.realtor_id,
+  r.name,
+  r.company,
+  r.created_ts,
+  p.property_id,
+  p.listing_id,
+  p.url,
+  p.zipcode,
+  p.city,
+  p.state,
+  p.location,
+  p.price
 FROM realtor r
-INNER JOIN property p
+INNER JOIN property_price p
   ON r.property_id = p.property_id AND r.listing_id = p.listing_id
 WHERE realtor_id = $1
 `
 
 type GetRealtorPropertiesRow struct {
-	RealtorID           int32                        `json:"realtor_id"`
-	Name                string                       `json:"name"`
-	Company             string                       `json:"company"`
-	PropertyID          int32                        `json:"property_id"`
-	ListingID           int32                        `json:"listing_id"`
-	CreatedTs           pgtype.Timestamp             `json:"created_ts"`
-	PropertyID_2        int32                        `json:"property_id_2"`
-	ListingID_2         int32                        `json:"listing_id_2"`
-	URL                 pgtype.Text                  `json:"url"`
-	Zipcode             pgtype.Text                  `json:"zipcode"`
-	City                pgtype.Text                  `json:"city"`
-	State               pgtype.Text                  `json:"state"`
-	Location            *geos.Geom                   `json:"location"`
-	ListPrice           int                          `json:"list_price"`
-	LastScrapeTs        pgtype.Timestamp             `json:"last_scrape_ts"`
-	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
-	LastScrapeChecksums jsonb.PropertyScrapeMetadata `json:"last_scrape_checksums"`
-	ListPrice_2         int                          `json:"list_price_2"`
+	RealtorID  int32              `json:"realtor_id"`
+	Name       string             `json:"name"`
+	Company    string             `json:"company"`
+	CreatedTS  pgtype.Timestamp   `json:"created_ts"`
+	PropertyID int32              `json:"property_id"`
+	ListingID  int32              `json:"listing_id"`
+	URL        pgtype.Text        `json:"url"`
+	Zipcode    pgtype.Text        `json:"zipcode"`
+	City       pgtype.Text        `json:"city"`
+	State      pgtype.Text        `json:"state"`
+	Location   *geometry.Geometry `json:"location"`
+	Price      int32              `json:"price"`
 }
 
 func (q *Queries) GetRealtorProperties(ctx context.Context, realtorID int32) ([]GetRealtorPropertiesRow, error) {
@@ -106,21 +111,15 @@ func (q *Queries) GetRealtorProperties(ctx context.Context, realtorID int32) ([]
 			&i.RealtorID,
 			&i.Name,
 			&i.Company,
+			&i.CreatedTS,
 			&i.PropertyID,
 			&i.ListingID,
-			&i.CreatedTs,
-			&i.PropertyID_2,
-			&i.ListingID_2,
 			&i.URL,
 			&i.Zipcode,
 			&i.City,
 			&i.State,
 			&i.Location,
-			&i.ListPrice,
-			&i.LastScrapeTs,
-			&i.LastScrapeStatus,
-			&i.LastScrapeChecksums,
-			&i.ListPrice_2,
+			&i.Price,
 		); err != nil {
 			return nil, err
 		}
@@ -133,32 +132,38 @@ func (q *Queries) GetRealtorProperties(ctx context.Context, realtorID int32) ([]
 }
 
 const getRealtorPropertiesByName = `-- name: GetRealtorPropertiesByName :many
-SELECT realtor_id, name, company, r.property_id, r.listing_id, created_ts, p.property_id, p.listing_id, url, zipcode, city, state, location, list_price, last_scrape_ts, last_scrape_status, last_scrape_checksums, p.list_price
+SELECT
+  r.realtor_id,
+  r.name,
+  r.company,
+  r.created_ts,
+  p.property_id,
+  p.listing_id,
+  p.url,
+  p.zipcode,
+  p.city,
+  p.state,
+  p.location,
+  p.price
 FROM realtor r
-INNER JOIN property p
+INNER JOIN property_price p
   ON r.property_id = p.property_id AND r.listing_id = p.listing_id
 WHERE name = $1
 `
 
 type GetRealtorPropertiesByNameRow struct {
-	RealtorID           int32                        `json:"realtor_id"`
-	Name                string                       `json:"name"`
-	Company             string                       `json:"company"`
-	PropertyID          int32                        `json:"property_id"`
-	ListingID           int32                        `json:"listing_id"`
-	CreatedTs           pgtype.Timestamp             `json:"created_ts"`
-	PropertyID_2        int32                        `json:"property_id_2"`
-	ListingID_2         int32                        `json:"listing_id_2"`
-	URL                 pgtype.Text                  `json:"url"`
-	Zipcode             pgtype.Text                  `json:"zipcode"`
-	City                pgtype.Text                  `json:"city"`
-	State               pgtype.Text                  `json:"state"`
-	Location            *geos.Geom                   `json:"location"`
-	ListPrice           int                          `json:"list_price"`
-	LastScrapeTs        pgtype.Timestamp             `json:"last_scrape_ts"`
-	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
-	LastScrapeChecksums jsonb.PropertyScrapeMetadata `json:"last_scrape_checksums"`
-	ListPrice_2         int                          `json:"list_price_2"`
+	RealtorID  int32              `json:"realtor_id"`
+	Name       string             `json:"name"`
+	Company    string             `json:"company"`
+	CreatedTS  pgtype.Timestamp   `json:"created_ts"`
+	PropertyID int32              `json:"property_id"`
+	ListingID  int32              `json:"listing_id"`
+	URL        pgtype.Text        `json:"url"`
+	Zipcode    pgtype.Text        `json:"zipcode"`
+	City       pgtype.Text        `json:"city"`
+	State      pgtype.Text        `json:"state"`
+	Location   *geometry.Geometry `json:"location"`
+	Price      int32              `json:"price"`
 }
 
 func (q *Queries) GetRealtorPropertiesByName(ctx context.Context, name string) ([]GetRealtorPropertiesByNameRow, error) {
@@ -174,21 +179,15 @@ func (q *Queries) GetRealtorPropertiesByName(ctx context.Context, name string) (
 			&i.RealtorID,
 			&i.Name,
 			&i.Company,
+			&i.CreatedTS,
 			&i.PropertyID,
 			&i.ListingID,
-			&i.CreatedTs,
-			&i.PropertyID_2,
-			&i.ListingID_2,
 			&i.URL,
 			&i.Zipcode,
 			&i.City,
 			&i.State,
 			&i.Location,
-			&i.ListPrice,
-			&i.LastScrapeTs,
-			&i.LastScrapeStatus,
-			&i.LastScrapeChecksums,
-			&i.ListPrice_2,
+			&i.Price,
 		); err != nil {
 			return nil, err
 		}
@@ -201,31 +200,38 @@ func (q *Queries) GetRealtorPropertiesByName(ctx context.Context, name string) (
 }
 
 const getRealtorPropertiesFullByName = `-- name: GetRealtorPropertiesFullByName :many
-SELECT realtor_id, name, company, r.property_id, r.listing_id, created_ts, p.property_id, p.listing_id, url, zipcode, city, state, location, list_price, last_scrape_ts, last_scrape_status, last_scrape_checksums
+SELECT
+  r.realtor_id,
+  r.name,
+  r.company,
+  r.created_ts,
+  p.property_id,
+  p.listing_id,
+  p.url,
+  p.zipcode,
+  p.city,
+  p.state,
+  p.location,
+  p.price
 FROM realtor r
-INNER JOIN property p
+INNER JOIN property_price p
   ON r.property_id = p.property_id AND r.listing_id = p.listing_id
 WHERE name = $1
 `
 
 type GetRealtorPropertiesFullByNameRow struct {
-	RealtorID           int32                        `json:"realtor_id"`
-	Name                string                       `json:"name"`
-	Company             string                       `json:"company"`
-	PropertyID          int32                        `json:"property_id"`
-	ListingID           int32                        `json:"listing_id"`
-	CreatedTs           pgtype.Timestamp             `json:"created_ts"`
-	PropertyID_2        int32                        `json:"property_id_2"`
-	ListingID_2         int32                        `json:"listing_id_2"`
-	URL                 pgtype.Text                  `json:"url"`
-	Zipcode             pgtype.Text                  `json:"zipcode"`
-	City                pgtype.Text                  `json:"city"`
-	State               pgtype.Text                  `json:"state"`
-	Location            *geos.Geom                   `json:"location"`
-	ListPrice           int                          `json:"list_price"`
-	LastScrapeTs        pgtype.Timestamp             `json:"last_scrape_ts"`
-	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
-	LastScrapeChecksums jsonb.PropertyScrapeMetadata `json:"last_scrape_checksums"`
+	RealtorID  int32              `json:"realtor_id"`
+	Name       string             `json:"name"`
+	Company    string             `json:"company"`
+	CreatedTS  pgtype.Timestamp   `json:"created_ts"`
+	PropertyID int32              `json:"property_id"`
+	ListingID  int32              `json:"listing_id"`
+	URL        pgtype.Text        `json:"url"`
+	Zipcode    pgtype.Text        `json:"zipcode"`
+	City       pgtype.Text        `json:"city"`
+	State      pgtype.Text        `json:"state"`
+	Location   *geometry.Geometry `json:"location"`
+	Price      int32              `json:"price"`
 }
 
 func (q *Queries) GetRealtorPropertiesFullByName(ctx context.Context, name string) ([]GetRealtorPropertiesFullByNameRow, error) {
@@ -241,20 +247,15 @@ func (q *Queries) GetRealtorPropertiesFullByName(ctx context.Context, name strin
 			&i.RealtorID,
 			&i.Name,
 			&i.Company,
+			&i.CreatedTS,
 			&i.PropertyID,
 			&i.ListingID,
-			&i.CreatedTs,
-			&i.PropertyID_2,
-			&i.ListingID_2,
 			&i.URL,
 			&i.Zipcode,
 			&i.City,
 			&i.State,
 			&i.Location,
-			&i.ListPrice,
-			&i.LastScrapeTs,
-			&i.LastScrapeStatus,
-			&i.LastScrapeChecksums,
+			&i.Price,
 		); err != nil {
 			return nil, err
 		}
@@ -267,32 +268,38 @@ func (q *Queries) GetRealtorPropertiesFullByName(ctx context.Context, name strin
 }
 
 const listRealtors = `-- name: ListRealtors :many
-SELECT realtor_id, name, company, r.property_id, r.listing_id, created_ts, p.property_id, p.listing_id, url, zipcode, city, state, location, list_price, last_scrape_ts, last_scrape_status, last_scrape_checksums, p.list_price
+SELECT
+  r.realtor_id,
+  r.name,
+  r.company,
+  r.created_ts,
+  p.property_id,
+  p.listing_id,
+  p.url,
+  p.zipcode,
+  p.city,
+  p.state,
+  p.location,
+  p.price
 FROM realtor r
-INNER JOIN property p
+INNER JOIN property_price p
   ON r.property_id = p.property_id AND r.listing_id = p.listing_id
 ORDER BY name
 `
 
 type ListRealtorsRow struct {
-	RealtorID           int32                        `json:"realtor_id"`
-	Name                string                       `json:"name"`
-	Company             string                       `json:"company"`
-	PropertyID          int32                        `json:"property_id"`
-	ListingID           int32                        `json:"listing_id"`
-	CreatedTs           pgtype.Timestamp             `json:"created_ts"`
-	PropertyID_2        int32                        `json:"property_id_2"`
-	ListingID_2         int32                        `json:"listing_id_2"`
-	URL                 pgtype.Text                  `json:"url"`
-	Zipcode             pgtype.Text                  `json:"zipcode"`
-	City                pgtype.Text                  `json:"city"`
-	State               pgtype.Text                  `json:"state"`
-	Location            *geos.Geom                   `json:"location"`
-	ListPrice           int                          `json:"list_price"`
-	LastScrapeTs        pgtype.Timestamp             `json:"last_scrape_ts"`
-	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
-	LastScrapeChecksums jsonb.PropertyScrapeMetadata `json:"last_scrape_checksums"`
-	ListPrice_2         int                          `json:"list_price_2"`
+	RealtorID  int32              `json:"realtor_id"`
+	Name       string             `json:"name"`
+	Company    string             `json:"company"`
+	CreatedTS  pgtype.Timestamp   `json:"created_ts"`
+	PropertyID int32              `json:"property_id"`
+	ListingID  int32              `json:"listing_id"`
+	URL        pgtype.Text        `json:"url"`
+	Zipcode    pgtype.Text        `json:"zipcode"`
+	City       pgtype.Text        `json:"city"`
+	State      pgtype.Text        `json:"state"`
+	Location   *geometry.Geometry `json:"location"`
+	Price      int32              `json:"price"`
 }
 
 func (q *Queries) ListRealtors(ctx context.Context) ([]ListRealtorsRow, error) {
@@ -308,21 +315,15 @@ func (q *Queries) ListRealtors(ctx context.Context) ([]ListRealtorsRow, error) {
 			&i.RealtorID,
 			&i.Name,
 			&i.Company,
+			&i.CreatedTS,
 			&i.PropertyID,
 			&i.ListingID,
-			&i.CreatedTs,
-			&i.PropertyID_2,
-			&i.ListingID_2,
 			&i.URL,
 			&i.Zipcode,
 			&i.City,
 			&i.State,
 			&i.Location,
-			&i.ListPrice,
-			&i.LastScrapeTs,
-			&i.LastScrapeStatus,
-			&i.LastScrapeChecksums,
-			&i.ListPrice_2,
+			&i.Price,
 		); err != nil {
 			return nil, err
 		}

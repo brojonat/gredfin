@@ -5,6 +5,7 @@ sql:
       - "sqlc/property_query.sql"
       - "sqlc/search_query.sql"
       - "sqlc/realtor_query.sql"
+      - "sqlc/property_events_query.sql"
     schema: "sqlc/schema.sql"
     gen:
       go:
@@ -14,24 +15,65 @@ sql:
         emit_json_tags: true
         rename:
           url: "URL"
+          last_scrape_ts: "LastScrapeTS"
+          event_ts: "EventTS"
+          created_ts: "CreatedTS"
+          source_id: "SourceID"
         overrides:
-          - column: "property.last_scrape_checksums"
+          ## db type overrides
+          - db_type: "geometry"
             go_type:
-              import: "github.com/brojonat/gredfin/server/dbgen/jsonb"
-              package: "jsonb"
-              type: "PropertyScrapeMetadata"
+              import: "github.com/twpayne/go-geos/geometry"
+              package: "geometry"
+              type: "Geometry"
+              pointer: true
+            null: true
+          # realtor table overrides
           - column: "realtor.realtor_id"
             go_type: "int32"
           - column: "realtor.name"
             go_type: "string"
           - column: "realtor.company"
             go_type: "string"
-          - column: "property.list_price"
-            go_type: "int"
-          - column: "property.location"
+
+          # property table overrides
+          - column: "property.property_id"
+            go_type: "int32"
+          - column: "property.listing_id"
+            go_type: "int32"
+          - column: "property.last_scrape_checksums"
             go_type:
-              import: "github.com/twpayne/go-geos"
-              package: "geos"
-              pointer: true
-              type: "Geom"
-            null: true
+              import: "github.com/brojonat/gredfin/server/dbgen/jsonb"
+              package: "jsonb"
+              type: "PropertyScrapeMetadata"
+          - column: "property.price"
+            go_type: "int32"
+
+          # property_events table overrides
+          - column: "property_events.property_id"
+            go_type: "int32"
+          - column: "property_events.listing_id"
+            go_type: "int32"
+          - column: "property_events.price"
+            go_type: "int32"
+
+          # last_property_price_event view overrides
+          - column: "last_property_price_event.property_id"
+            go_type: "int32"
+          - column: "last_property_price_event.listing_id"
+            go_type: "int32"
+          - column: "last_property_price_event.price"
+            go_type: "int32"
+
+          # property_price view overrides
+          - column: "property_price.property_id"
+            go_type: "int32"
+          - column: "property_price.listing_id"
+            go_type: "int32"
+          - column: "property_price.price"
+            go_type: "int32"
+          - column: "property_price.last_scrape_checksums"
+            go_type:
+              import: "github.com/brojonat/gredfin/server/dbgen/jsonb"
+              package: "jsonb"
+              type: "PropertyScrapeMetadata"

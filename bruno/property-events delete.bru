@@ -1,0 +1,19 @@
+meta {
+  name: /property-events delete
+  type: http
+  seq: 14
+}
+
+delete {
+  url: {{ENDPOINT}}/property-events?event_id=5
+  body: none
+  auth: none
+}
+
+query {
+  event_id: 5
+}
+
+headers {
+  Authorization: {{AUTH_TOKEN}}
+}

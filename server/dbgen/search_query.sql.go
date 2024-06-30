@@ -46,27 +46,27 @@ func (q *Queries) DeleteSearchByQuery(ctx context.Context, query pgtype.Text) er
 
 const getNNextSearchScrapeForUpdate = `-- name: GetNNextSearchScrapeForUpdate :one
 SELECT search_id, query, last_scrape_ts, last_scrape_status FROM search
-WHERE last_scrape_status = ANY($2::VARCHAR[])
+WHERE last_scrape_status = ANY($1::VARCHAR[])
 ORDER BY NOW()::timestamp - last_scrape_ts DESC
-LIMIT $1
+LIMIT $2
 FOR UPDATE
 `
 
 type GetNNextSearchScrapeForUpdateParams struct {
-	Limit   int32    `json:"limit"`
-	Column2 []string `json:"column_2"`
+	Statuses []string `json:"statuses"`
+	Count    int32    `json:"count"`
 }
 
 // Get the next N property entries that have a last_scrape_status in the
 // supplied slice. Rows are locked for update; callers are expected to set
 // status rows to PENDING after retrieving rows.
 func (q *Queries) GetNNextSearchScrapeForUpdate(ctx context.Context, arg GetNNextSearchScrapeForUpdateParams) (Search, error) {
-	row := q.db.QueryRow(ctx, getNNextSearchScrapeForUpdate, arg.Limit, arg.Column2)
+	row := q.db.QueryRow(ctx, getNNextSearchScrapeForUpdate, arg.Statuses, arg.Count)
 	var i Search
 	err := row.Scan(
 		&i.SearchID,
 		&i.Query,
-		&i.LastScrapeTs,
+		&i.LastScrapeTS,
 		&i.LastScrapeStatus,
 	)
 	return i, err
@@ -83,7 +83,7 @@ func (q *Queries) GetSearch(ctx context.Context, searchID int32) (Search, error)
 	err := row.Scan(
 		&i.SearchID,
 		&i.Query,
-		&i.LastScrapeTs,
+		&i.LastScrapeTS,
 		&i.LastScrapeStatus,
 	)
 	return i, err
@@ -100,7 +100,7 @@ func (q *Queries) GetSearchByQuery(ctx context.Context, query pgtype.Text) (Sear
 	err := row.Scan(
 		&i.SearchID,
 		&i.Query,
-		&i.LastScrapeTs,
+		&i.LastScrapeTS,
 		&i.LastScrapeStatus,
 	)
 	return i, err
@@ -123,7 +123,7 @@ func (q *Queries) ListSearches(ctx context.Context) ([]Search, error) {
 		if err := rows.Scan(
 			&i.SearchID,
 			&i.Query,
-			&i.LastScrapeTs,
+			&i.LastScrapeTS,
 			&i.LastScrapeStatus,
 		); err != nil {
 			return nil, err
@@ -147,7 +147,7 @@ WHERE search_id = $1
 type PostSearchParams struct {
 	SearchID         int32            `json:"search_id"`
 	Query            pgtype.Text      `json:"query"`
-	LastScrapeTs     pgtype.Timestamp `json:"last_scrape_ts"`
+	LastScrapeTS     pgtype.Timestamp `json:"last_scrape_ts"`
 	LastScrapeStatus string           `json:"last_scrape_status"`
 }
 
@@ -155,7 +155,7 @@ func (q *Queries) PostSearch(ctx context.Context, arg PostSearchParams) error {
 	_, err := q.db.Exec(ctx, postSearch,
 		arg.SearchID,
 		arg.Query,
-		arg.LastScrapeTs,
+		arg.LastScrapeTS,
 		arg.LastScrapeStatus,
 	)
 	return err

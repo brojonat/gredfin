@@ -1,0 +1,19 @@
+meta {
+  name: /property-events
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{ENDPOINT}}/property-events?property_id=78386357
+  body: none
+  auth: none
+}
+
+query {
+  property_id: 78386357
+}
+
+headers {
+  Authorization: {{AUTH_TOKEN}}
+}

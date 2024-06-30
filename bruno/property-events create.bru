@@ -1,0 +1,25 @@
+meta {
+  name: /property-events create
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{ENDPOINT}}/property-events
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: {{AUTH_TOKEN}}
+}
+
+body:json {
+  [
+    {
+      "property_id": 78386357,
+      "listing_id": 190038221,
+      "event_description": "lol"
+    }
+  ]
+}

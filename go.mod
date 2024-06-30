@@ -26,6 +26,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/twpayne/go-geom v1.5.4 // indirect
 	github.com/xrash/smetrics v0.0.0-20240312152122-5f08fbb34913 // indirect
 )
 
@@ -40,8 +41,9 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0
-	github.com/stretchr/testify v1.8.4 // indirect
+	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/twpayne/go-geos v0.18.0
+	github.com/twpayne/pgx-geom v0.0.1
 	github.com/twpayne/pgx-geos v0.0.3
 	github.com/urfave/cli/v2 v2.27.2
 	golang.org/x/crypto v0.24.0 // indirect

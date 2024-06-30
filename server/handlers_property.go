@@ -18,12 +18,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type PropertyScrapeMetadata struct {
-	InitialInfoHash string `json:"initial_info_hash"`
-	MLSHash         string `json:"mls_hash"`
-	AVMHash         string `json:"avm_hash"`
-}
-
 func handlePropertyGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		propertyID := r.URL.Query().Get("property_id")
@@ -31,7 +25,7 @@ func handlePropertyGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 
 		// no identifier, list properties
 		if propertyID == "" && listingID == "" {
-			props, err := q.ListProperties(r.Context())
+			props, err := q.ListPropertiesPrices(r.Context())
 			if err == pgx.ErrNoRows {
 				writeEmptyResultError(w)
 				return
@@ -60,7 +54,7 @@ func handlePropertyGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 				json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad value for property_id"})
 				return
 			}
-			props, err := q.GetPropertiesByID(r.Context(), int32(pid))
+			props, err := q.GetProperties(r.Context(), dbgen.GetPropertiesParams{PropertyID: int32(pid)})
 			if err == pgx.ErrNoRows {
 				writeEmptyResultError(w)
 				return
@@ -109,12 +103,27 @@ func handlePropertyPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			var mr *MalformedRequest
 			if errors.As(err, &mr) {
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad request"})
+				json.NewEncoder(w).Encode(DefaultJSONResponse{Error: fmt.Sprintf("bad request payload: %s", err.Error())})
 			} else {
 				writeInternalError(l, w, err)
 			}
 			return
 		}
+
+		// check if this url is blocklisted, return early with a 204 if so
+		bps, err := q.ListBlocklistedProperties(r.Context(), []string{p.URL.String})
+		if err == nil && len(bps) > 0 {
+			w.WriteHeader(http.StatusAccepted)
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+			return
+		}
+		// this should return ErrNoRows in normal circumstances; exit early with 500 if not
+		if err != pgx.ErrNoRows {
+			writeInternalError(l, w, err)
+			return
+		}
+
+		// create the property, ignore "already exists" error
 		err = q.CreateProperty(r.Context(), p)
 		if err != nil {
 			if !isPGError(err, pgErrorUniqueViolation) {
@@ -132,20 +141,14 @@ func handlePropertyPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 // for each field that is specified in the input, updates the current with the
 // specified data, then writes the resulting object to the model.
 func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.HandlerFunc {
-	type propertyUpdate struct {
-		dbgen.CreatePropertyParams
-		PropertyScrapeMetadata
-		Status       string `json:"status"`
-		LastScrapeTs string `json:"last_scrape_ts"`
-	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		var updateData propertyUpdate
+		var updateData dbgen.PutPropertyParams
 		err := decodeJSONBody(r, &updateData)
 		if err != nil {
 			var mr *MalformedRequest
 			if errors.As(err, &mr) {
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad request"})
+				json.NewEncoder(w).Encode(DefaultJSONResponse{Error: fmt.Sprintf("bad request payload: %s", err.Error())})
 			} else {
 				writeInternalError(l, w, err)
 			}
@@ -174,7 +177,9 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 			writeInternalError(l, w, err)
 			return
 		}
-		// default the update data to the existing data
+		// Default the update data to the existing data, then for each field, check
+		// if the supplied value is not equal to the zero value. This makes it hard
+		// to set the actual value to the zero value on this route, but I don't care.
 		pd := dbgen.PutPropertyParams{
 			PropertyID:          current.PropertyID,
 			ListingID:           current.ListingID,
@@ -182,34 +187,40 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 			Zipcode:             current.Zipcode,
 			City:                current.City,
 			State:               current.State,
-			ListPrice:           current.ListPrice,
-			LastScrapeTs:        pgtype.Timestamp{Time: time.Now(), Valid: true},
+			Location:            current.Location,
+			LastScrapeTS:        pgtype.Timestamp{Time: time.Now(), Valid: true},
 			LastScrapeStatus:    current.LastScrapeStatus,
 			LastScrapeChecksums: current.LastScrapeChecksums,
 		}
 		if updateData.URL.String != "" {
 			pd.URL = updateData.URL
 		}
-		if updateData.Status != "" {
-			pd.LastScrapeStatus = pgtype.Text{String: updateData.Status, Valid: true}
+		if updateData.Zipcode.String != "" {
+			pd.Zipcode = updateData.Zipcode
 		}
-		if updateData.LastScrapeTs != "" {
-			ts, err := time.Parse(time.RFC3339, updateData.LastScrapeTs)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad timestamp"})
-				return
-			}
-			pd.LastScrapeTs = pgtype.Timestamp{Time: ts, Valid: true}
+		if updateData.City.String != "" {
+			pd.City = updateData.City
 		}
-		if updateData.InitialInfoHash != "" {
-			pd.LastScrapeChecksums.InitialInfoHash = updateData.InitialInfoHash
+		if updateData.State.String != "" {
+			pd.State = updateData.State
 		}
-		if updateData.MLSHash != "" {
-			pd.LastScrapeChecksums.MLSHash = updateData.MLSHash
+		if updateData.Location != nil {
+			pd.Location = updateData.Location
 		}
-		if updateData.AVMHash != "" {
-			pd.LastScrapeChecksums.AVMHash = updateData.AVMHash
+		if !updateData.LastScrapeTS.Time.IsZero() {
+			pd.LastScrapeTS = updateData.LastScrapeTS
+		}
+		if updateData.LastScrapeStatus.String != "" {
+			pd.LastScrapeStatus = updateData.LastScrapeStatus
+		}
+		if updateData.LastScrapeChecksums.InitialInfoHash != "" {
+			pd.LastScrapeChecksums.InitialInfoHash = updateData.LastScrapeChecksums.InitialInfoHash
+		}
+		if updateData.LastScrapeChecksums.MLSHash != "" {
+			pd.LastScrapeChecksums.MLSHash = updateData.LastScrapeChecksums.MLSHash
+		}
+		if updateData.LastScrapeChecksums.AVMHash != "" {
+			pd.LastScrapeChecksums.AVMHash = updateData.LastScrapeChecksums.AVMHash
 		}
 		err = q.PutProperty(r.Context(), pd)
 		if err != nil {
@@ -292,7 +303,7 @@ func handlePropertyClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) 
 		prop, err := q.GetNNextPropertyScrapeForUpdate(
 			r.Context(),
 			dbgen.GetNNextPropertyScrapeForUpdateParams{
-				Limit: 1, Column2: []string{ScrapeStatusGood}},
+				Count: 1, Statuses: []string{ScrapeStatusGood}},
 		)
 		if err == pgx.ErrNoRows {
 			writeEmptyResultError(w)
@@ -369,5 +380,90 @@ func handleGetPresignedPutURL(l *slog.Logger, s3c *s3.Client, q *dbgen.Queries) 
 		}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: presignedPutRequest.URL})
+	}
+}
+
+func handlePropertyEventsGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		propertyID := r.URL.Query().Get("property_id")
+		pid, err := strconv.Atoi(propertyID)
+		if err != nil {
+			writeBadRequestError(w, fmt.Errorf("bad value for property_id"))
+			return
+		}
+		events, err := q.GetPropertyEvents(r.Context(), dbgen.GetPropertyEventsParams{PropertyID: int32(pid)})
+		if err != nil {
+			writeInternalError(l, w, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(events)
+	}
+}
+
+func handlePropertyEventsPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var ps []dbgen.CreatePropertyEventParams
+		err := decodeJSONBody(r, &ps)
+		if err != nil {
+			var mr *MalformedRequest
+			if errors.As(err, &mr) {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(DefaultJSONResponse{Error: fmt.Sprintf("bad request payload: %s", err.Error())})
+			} else {
+				writeInternalError(l, w, err)
+			}
+			return
+		}
+
+		// validate each event, if any are invalid, return early with 400
+		for _, p := range ps {
+			if p.PropertyID == 0 || p.ListingID == 0 {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad request payload: must set both property_id and listing_id"})
+				return
+			}
+		}
+		// create and return status
+		count, err := q.CreatePropertyEvent(r.Context(), ps)
+		if err != nil {
+			// return early for bad input
+			if isPGError(err, pgErrorForeignKeyViolation) {
+				writeBadRequestError(w, fmt.Errorf("property_id must map to an existing property"))
+				return
+			}
+			// default unhandled error
+			writeInternalError(l, w, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: fmt.Sprintf("%d / %d", count, len(ps))})
+	}
+}
+
+func handlePropertyEventsDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		event_ids := r.URL.Query()["event_id"]
+		if len(event_ids) == 0 {
+			writeBadRequestError(w, fmt.Errorf("must supply at least one event_id"))
+			return
+		}
+
+		ids := []int32{}
+		for _, eid := range event_ids {
+			id, err := strconv.Atoi(eid)
+			if err != nil {
+				writeBadRequestError(w, fmt.Errorf("bad event_id: %s", eid))
+				return
+			}
+			ids = append(ids, int32(id))
+		}
+		err := q.DeletePropertyEvent(r.Context(), ids)
+		if err != nil {
+			writeInternalError(l, w, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
 	}
 }

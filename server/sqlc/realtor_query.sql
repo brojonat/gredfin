@@ -1,28 +1,76 @@
 -- name: GetRealtorProperties :many
-SELECT *, p.list_price
+SELECT
+  r.realtor_id,
+  r.name,
+  r.company,
+  r.created_ts,
+  p.property_id,
+  p.listing_id,
+  p.url,
+  p.zipcode,
+  p.city,
+  p.state,
+  p.location,
+  p.price
 FROM realtor r
-INNER JOIN property p
+INNER JOIN property_price p
   ON r.property_id = p.property_id AND r.listing_id = p.listing_id
 WHERE realtor_id = $1;
 
 -- name: GetRealtorPropertiesByName :many
-SELECT *, p.list_price
+SELECT
+  r.realtor_id,
+  r.name,
+  r.company,
+  r.created_ts,
+  p.property_id,
+  p.listing_id,
+  p.url,
+  p.zipcode,
+  p.city,
+  p.state,
+  p.location,
+  p.price
 FROM realtor r
-INNER JOIN property p
+INNER JOIN property_price p
   ON r.property_id = p.property_id AND r.listing_id = p.listing_id
 WHERE name = $1;
 
 -- name: GetRealtorPropertiesFullByName :many
-SELECT *
+SELECT
+  r.realtor_id,
+  r.name,
+  r.company,
+  r.created_ts,
+  p.property_id,
+  p.listing_id,
+  p.url,
+  p.zipcode,
+  p.city,
+  p.state,
+  p.location,
+  p.price
 FROM realtor r
-INNER JOIN property p
+INNER JOIN property_price p
   ON r.property_id = p.property_id AND r.listing_id = p.listing_id
 WHERE name = $1;
 
 -- name: ListRealtors :many
-SELECT *, p.list_price
+SELECT
+  r.realtor_id,
+  r.name,
+  r.company,
+  r.created_ts,
+  p.property_id,
+  p.listing_id,
+  p.url,
+  p.zipcode,
+  p.city,
+  p.state,
+  p.location,
+  p.price
 FROM realtor r
-INNER JOIN property p
+INNER JOIN property_price p
   ON r.property_id = p.property_id AND r.listing_id = p.listing_id
 ORDER BY name;
 

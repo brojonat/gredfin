@@ -18,6 +18,7 @@ import (
 	"github.com/brojonat/gredfin/server/dbgen"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/twpayne/go-geos"
+	"github.com/twpayne/go-geos/geometry"
 )
 
 // Default implementation of a Search scrape worker. The worker pulls a search
@@ -272,68 +273,17 @@ func addPropertyFromURL(
 	}
 	latitude, longitude := lat.(float64), long.(float64)
 
-	// FIXME: shouldn't this stop here? And let the property worker handle the rest?
-
-	// get the mls data
-	b, err = grc.BelowTheFold(strconv.Itoa(pid), map[string]string{})
-	if err != nil {
-		return fmt.Errorf("error getting mls_info: %w", err)
-	}
-	if err = json.Unmarshal(b, &res); err != nil {
-		return fmt.Errorf("error serializing mls_info query response: %w", err)
-	}
-	if err := json.Unmarshal(res.Payload, &jmesdata); err != nil {
-		return fmt.Errorf("error unmarshaling mls_info payload data: %w", err)
-	}
-
-	// parse zipcode
-	zipcode, err := jmesParseMLSParams("zipcode", jmesdata)
-	if err != nil {
-		return fmt.Errorf("error searching for zipcode: %w", err)
-	}
-	if zipcode == nil {
-		return fmt.Errorf("null result extracting zipcode")
-	}
-
-	// parse city
-	city, err := jmesParseMLSParams("city", jmesdata)
-	if err != nil {
-		return fmt.Errorf("error searching for city %w", err)
-	}
-	if city == nil {
-		return fmt.Errorf("null result extracting city")
-	}
-
-	// parse state
-	state, err := jmesParseMLSParams("state", jmesdata)
-	if err != nil {
-		return fmt.Errorf("error searching for state %w", err)
-	}
-	if state == nil {
-		return fmt.Errorf("null result extracting state")
-	}
-
-	// parse listing price
-	lp, err := jmesParseMLSParams("list_price", jmesdata)
-	if err != nil {
-		return fmt.Errorf("error extracting list price: %w", err)
-	}
-	if lp == nil {
-		fmt.Println(string(b))
-		return fmt.Errorf("null result extracting list price")
-	}
-
 	p := &dbgen.CreatePropertyParams{
 		PropertyID: int32(pid),
 		ListingID:  int32(lid),
 		URL:        pgtype.Text{String: url, Valid: true},
-		Zipcode:    pgtype.Text{String: zipcode.(string), Valid: true},
-		City:       pgtype.Text{String: city.(string), Valid: true},
-		State:      pgtype.Text{String: state.(string), Valid: true},
-		Location:   geos.NewPoint([]float64{latitude, longitude}),
-		ListPrice:  int(lp.(float64)),
+		Location:   geometry.NewGeometry(geos.NewPoint([]float64{longitude, latitude}).SetSRID(4326)),
 	}
-	if err = createProperty(endpoint, h, p); err != nil {
+	b, err = json.Marshal(p)
+	if err != nil {
+		return fmt.Errorf("error serializing create Property request: %w", err)
+	}
+	if err = createProperty(endpoint, h, b); err != nil {
 		return fmt.Errorf(
 			"error creating property (property_id: %d, listing_id: %d, url: %s): %w",
 			pid, lid, url, err,

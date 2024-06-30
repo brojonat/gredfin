@@ -280,7 +280,8 @@ func main() {
 		}}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(os.Stderr, "error running command: %s\n", err.Error())
+		os.Exit(1)
 	}
 }
 

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -62,7 +63,14 @@ func makeGraceful(l *slog.Logger) handlerAdapter {
 				err := recover()
 				if err != nil {
 					l.Error("recovered from panic")
-					writeInternalError(l, w, err.(error))
+					switch v := err.(type) {
+					case error:
+						writeInternalError(l, w, v)
+					case string:
+						writeInternalError(l, w, fmt.Errorf(v))
+					default:
+						writeInternalError(l, w, fmt.Errorf("recovered but unexpected type from recover()"))
+					}
 				}
 			}()
 			next.ServeHTTP(w, r)

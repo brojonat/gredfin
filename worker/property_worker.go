@@ -11,11 +11,12 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/brojonat/gredfin/redfin"
 	"github.com/brojonat/gredfin/server"
 	"github.com/brojonat/gredfin/server/dbgen"
+	"github.com/brojonat/gredfin/server/dbgen/jsonb"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func logPropertyError(l *slog.Logger, msg string, err error, p *dbgen.Property) {
@@ -142,7 +143,8 @@ func MakePropertyWorkerFunc(
 
 		// At this point, we've successfully fetched all the bytes from Redfin
 		// pertaining to this property. Now we just have to do something with
-		// them. Pass them to handlePropertyBytes which will process them.
+		// them. Pass them to handlePropertyBytes which will process them (extract
+		// useful data, make some queries to the server, etc).
 		err = handlePropertyBytes(end, h, l, p, iiRes.Payload, mlsRes.Payload, avmRes.Payload)
 		if err != nil {
 			logPropertyError(l, "error handling property data, marking scrape bad", err, p)
@@ -152,25 +154,16 @@ func MakePropertyWorkerFunc(
 			return
 		}
 
-		// Done processing this property, so update this property on the server
-		// with this scrape's metadata (status, timestamp, and hashes). The same
-		// error handling as above is done here too. Note that if an error is
-		// encountered here the scrape will be marked bad even though we've
-		// already handled the data returned by the Redfin client.
-		payload := struct {
-			dbgen.CreatePropertyParams
-			server.PropertyScrapeMetadata
-			Status       string `json:"status"`
-			LastScrapeTs string `json:"last_scrape_ts"`
-		}{
-			dbgen.CreatePropertyParams{PropertyID: p.PropertyID, ListingID: p.ListingID, URL: p.URL},
-			server.PropertyScrapeMetadata{
+		// Mark the scrape status as good on the server
+		payload := dbgen.PutPropertyParams{
+			PropertyID:       p.PropertyID,
+			ListingID:        p.ListingID,
+			LastScrapeStatus: pgtype.Text{String: server.ScrapeStatusGood, Valid: true},
+			LastScrapeChecksums: jsonb.PropertyScrapeMetadata{
 				InitialInfoHash: hashBytes(iiRes.Payload),
 				MLSHash:         hashBytes(mlsRes.Payload),
 				AVMHash:         hashBytes(avmRes.Payload),
 			},
-			server.ScrapeStatusGood,
-			time.Now().Format(time.RFC3339),
 		}
 		b, err := json.Marshal(payload)
 		if err != nil {
@@ -201,37 +194,129 @@ func checkRedfinResponse(r redfin.RedfinResponse) error {
 // Parse property scrape bytes and upload relevant data.
 func handlePropertyBytes(end string, h http.Header, l *slog.Logger, p *dbgen.Property, iib, mlsb, avmb []byte) error {
 
-	// helper function to upload realtor data
-	uploadRealtor := func(r *dbgen.CreateRealtorParams) error {
-		b, err := json.Marshal(r)
+	// first parse the bytes into an empty interface for jmespath search
+	var jmesMLS interface{}
+	err := json.Unmarshal(mlsb, &jmesMLS)
+	if err != nil {
+		return fmt.Errorf("error parsing MLS bytes")
+	}
+
+	// Helper closure to parse and upload basic property data. This sets the
+	// data in the property table.
+	parseUploadProperty := func() error {
+
+		// parse zipcode
+		zipcode, err := jmesParseMLSParams("zipcode", jmesMLS)
 		if err != nil {
-			return fmt.Errorf("could not serialize realtor for create request: %w", err)
+			return fmt.Errorf("error searching for zipcode: %w", err)
 		}
-		req, err := http.NewRequest(
-			http.MethodPost,
-			fmt.Sprintf("%s/realtor", end),
-			bytes.NewReader(b),
-		)
+		if zipcode == nil {
+			return fmt.Errorf("null result extracting zipcode")
+		}
+
+		// parse city
+		city, err := jmesParseMLSParams("city", jmesMLS)
 		if err != nil {
-			return fmt.Errorf("error constructing create realtor request: %w", err)
+			return fmt.Errorf("error searching for city %w", err)
 		}
-		req.Header = h
-		res, err := http.DefaultClient.Do(req)
+		if city == nil {
+			return fmt.Errorf("null result extracting city")
+		}
+
+		// parse state
+		state, err := jmesParseMLSParams("state", jmesMLS)
 		if err != nil {
-			return fmt.Errorf("error doing create realtor request: %w", err)
+			return fmt.Errorf("error searching for state %w", err)
 		}
-		defer res.Body.Close()
-		b, err = io.ReadAll(res.Body)
+		if state == nil {
+			return fmt.Errorf("null result extracting state")
+		}
+
+		// parse listing price
+		lp, err := jmesParseMLSParams("price", jmesMLS)
 		if err != nil {
-			return fmt.Errorf("error reading response body: %w", err)
+			return fmt.Errorf("error extracting list price: %w", err)
 		}
-		if res.StatusCode != http.StatusOK {
-			return fmt.Errorf("error with create realtor response: %s", string(b))
+		if lp == nil {
+			return fmt.Errorf("null result extracting list price")
+		}
+		// upload
+		np := dbgen.PutPropertyParams{
+			PropertyID: p.PropertyID,
+			ListingID:  p.ListingID,
+			URL:        p.URL,
+			Zipcode:    pgtype.Text{String: zipcode.(string), Valid: true},
+			City:       pgtype.Text{String: city.(string), Valid: true},
+			State:      pgtype.Text{String: state.(string), Valid: true},
+		}
+		b, err := json.Marshal(np)
+		if err != nil {
+			return fmt.Errorf("error serializing property (property_id: %d, listing_id: %d): %w", p.PropertyID, p.ListingID, err)
+		}
+		if err = updateProperty(end, h, b); err != nil {
+			return fmt.Errorf("error uploading property: %w", err)
 		}
 		return nil
 	}
 
-	// helper function to upload bytes to S3 if the hash is different from the last scrape
+	// helper closure to parse and upload property history events. This sets the
+	// data in the property_events table AND the property_events_property_through table.
+	parseUploadPropertyEvents := func() error {
+		hevents, err := jmesParseMLSParams("events", jmesMLS)
+		if err != nil {
+			return err
+		}
+		events := []dbgen.CreatePropertyEventParams{}
+		for _, he := range hevents.([]historyEvent) {
+			events = append(events, dbgen.CreatePropertyEventParams{
+				PropertyID:       p.PropertyID,
+				ListingID:        p.ListingID,
+				Price:            he.Price,
+				EventDescription: pgtype.Text{String: he.EventDescription, Valid: true},
+				Source:           pgtype.Text{String: he.Source, Valid: true},
+				SourceID:         pgtype.Text{String: he.SourceID, Valid: true},
+				EventTS:          pgtype.Timestamp{Time: he.EventTS, Valid: true},
+			})
+		}
+
+		b, err := json.Marshal(events)
+		if err != nil {
+			return fmt.Errorf("error serializing property history events (property_id: %d, listing_id: %d): %w", p.PropertyID, p.ListingID, err)
+		}
+		if err = createPropertyEvents(end, h, b); err != nil {
+			return fmt.Errorf("error uploading property history events: %w", err)
+		}
+		return nil
+	}
+
+	// Helper closure to parse and upload realtor data. This sets the data in
+	// the realtor-property through table.
+	parseUploadRealtor := func() error {
+		// parse and upload the realtor data to the server
+		name, company, err := parseRealtorInfo(mlsb)
+		if err != nil {
+			return fmt.Errorf("error extracting realtor: %w", err)
+		}
+		r := dbgen.CreateRealtorParams{
+			PropertyID: p.PropertyID,
+			ListingID:  p.ListingID,
+			Name:       name,
+			Company:    company,
+		}
+
+		b, err := json.Marshal(r)
+		if err != nil {
+			return fmt.Errorf("could not serialize realtor for create request: %w", err)
+		}
+		if err = createRealtor(end, h, b); err != nil {
+			return fmt.Errorf("error uploading realtor: %w", err)
+		}
+		return nil
+
+	}
+
+	// Helper closure to upload bytes to S3 if the hash is different from the
+	// last scrape. This sets the data in the object storage.
 	maybeS3Upload := func(b []byte, hash string, basename string) error {
 		if hashBytes(b) == hash || true {
 			l.Debug("skipping scrape upload, bytes unchanged", "property_id", p.PropertyID, "listing_id", p.ListingID, "basename", basename)
@@ -259,32 +344,22 @@ func handlePropertyBytes(end string, h http.Header, l *slog.Logger, p *dbgen.Pro
 		return nil
 	}
 
-	// Here we can do a number of things. We can parse the data and upload
-	// aspects of it to the server. For instance, we can upload the realtor and
-	// price info. Additionally, we can upload to S3. The maybeUpload function
-	// will do that, but first it will check the hash of the bytes and only
-	// upload if the bytes have changed from the last scrape. However, note that
-	// some response bodies change on just about every request, so this on its
-	// own isn't super effective at reducing storage. Instead, we can extract
-	// certain parts of the response that are likely to change frequently and
-	// only hash/upload the "stable" parts of the response.
+	// parse and upload the property data to the server
+	if err := parseUploadProperty(); err != nil {
+		return fmt.Errorf("error uploading property: %w", err)
+	}
 
-	// parse and upload the realtor data to the server
-	name, company, err := parseRealtorInfo(mlsb)
-	if err != nil {
-		return fmt.Errorf("error extracting realtor: %w", err)
+	// parse and upload the property data to the server
+	if err := parseUploadPropertyEvents(); err != nil {
+		return fmt.Errorf("error uploading property history events: %w", err)
 	}
-	r := dbgen.CreateRealtorParams{
-		PropertyID: p.PropertyID,
-		ListingID:  p.ListingID,
-		Name:       name,
-		Company:    company,
-	}
-	if err := uploadRealtor(&r); err != nil {
+
+	// parse and upload the realtor data for this property to the server
+	if err := parseUploadRealtor(); err != nil {
 		return fmt.Errorf("error uploading realtor: %w", err)
 	}
 
-	// now do S3 uploads
+	// now (maybe) do S3 uploads to the cloud object store
 	if err := maybeS3Upload(iib, p.LastScrapeChecksums.InitialInfoHash, "initial_info.json"); err != nil {
 		return fmt.Errorf("error uploading InitialInfo bytes: %w", err)
 	}
@@ -333,12 +408,10 @@ func getPresignedPutURL(end string, h http.Header, p *dbgen.Property, basename s
 }
 
 func markPropertyScrapeBad(endpoint string, h http.Header, pid, lid int32) error {
-	payload := struct {
-		PropertyID int32  `json:"property_id"`
-		ListingID  int32  `json:"listing_id"`
-		Status     string `json:"status"`
-	}{
-		pid, lid, server.ScrapeStatusBad,
+	payload := dbgen.UpdatePropertyStatusParams{
+		PropertyID:       pid,
+		ListingID:        lid,
+		LastScrapeStatus: pgtype.Text{String: server.ScrapeStatusBad, Valid: true},
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {
@@ -378,26 +451,24 @@ func claimProperty(endpoint string, headers http.Header) (*dbgen.Property, error
 	return &p, nil
 }
 
-func createProperty(endpoint string, h http.Header, c *dbgen.CreatePropertyParams) error {
-	b, err := json.Marshal(c)
-	if err != nil {
-		return err
-	}
+func createProperty(endpoint string, h http.Header, b []byte) error {
 	req, err := http.NewRequest(
 		http.MethodPost,
 		fmt.Sprintf("%s/property", endpoint),
 		bytes.NewReader(b),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("error doing create Property request: %w", err)
 	}
 	req.Header = h
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("error doing create Property request: %w", err)
 	}
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
+	if res.StatusCode != http.StatusOK &&
+		res.StatusCode != http.StatusCreated &&
+		res.StatusCode != http.StatusAccepted {
 		return fmt.Errorf(res.Status)
 	}
 	return nil
@@ -410,16 +481,83 @@ func updateProperty(endpoint string, h http.Header, b []byte) error {
 		bytes.NewReader(b),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating update Property request: %w", err)
 	}
 	req.Header = h
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("error doing update Property request: %w", err)
 	}
 	defer res.Body.Close()
+	b, err = io.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("could not read update Property response body: %w", err)
+	}
+
+	var body server.DefaultJSONResponse
+	err = json.Unmarshal(b, &body)
+	if err != nil {
+		return fmt.Errorf("could not parse update Property response body: %w", err)
+	}
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf(res.Status)
+		return fmt.Errorf("unexpected response code for update Property: %s (%s)", res.Status, body.Error)
+	}
+	return nil
+}
+
+// helper function to POST /realtor
+func createRealtor(end string, h http.Header, b []byte) error {
+	req, err := http.NewRequest(
+		http.MethodPost,
+		fmt.Sprintf("%s/realtor", end),
+		bytes.NewReader(b),
+	)
+	if err != nil {
+		return fmt.Errorf("error constructing create Realtor request: %w", err)
+	}
+	req.Header = h
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("error doing create Realtor request: %w", err)
+	}
+	defer res.Body.Close()
+	b, err = io.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("error reading create Realtor response body: %w", err)
+	}
+	var body server.DefaultJSONResponse
+	err = json.Unmarshal(b, &body)
+	if err != nil {
+		return fmt.Errorf("could not parse create Realtor response body: %w", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected response code for create Realtor: %s (%s)", res.Status, body.Error)
+	}
+	return nil
+}
+
+// helper function to POST /property-events
+func createPropertyEvents(end string, h http.Header, b []byte) error {
+	req, err := http.NewRequest(
+		http.MethodPost,
+		fmt.Sprintf("%s/property-events", end),
+		bytes.NewReader(b),
+	)
+	if err != nil {
+		return fmt.Errorf("error constructing create PropertyEvents request: %w", err)
+	}
+	req.Header = h
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("error doing create PropertyEvents request: %w", err)
+	}
+	defer res.Body.Close()
+	b, err = io.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("error reading create PropertyEvents response body: %w", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("error with create PropertyEvents response: %s", string(b))
 	}
 	return nil
 }

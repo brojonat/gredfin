@@ -114,6 +114,23 @@ func getRootHandler(
 		mustAuth(),
 	))
 
+	// property-event CRUDL routes
+	mux.HandleFunc("GET /property-events", adaptHandler(
+		handlePropertyEventsGet(l, q),
+		apiMode(l, maxBytes, headers, methods, origins),
+		mustAuth(),
+	))
+	mux.HandleFunc("POST /property-events", adaptHandler(
+		handlePropertyEventsPost(l, q),
+		apiMode(l, maxBytes, headers, methods, origins),
+		mustAuth(),
+	))
+	mux.HandleFunc("DELETE /property-events", adaptHandler(
+		handlePropertyEventsDelete(l, q),
+		apiMode(l, maxBytes, headers, methods, origins),
+		mustAuth(),
+	))
+
 	// search worker routes
 	mux.HandleFunc("POST /search-query/claim-next", adaptHandler(
 		handleSearchClaimNext(l, p, q),

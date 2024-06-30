@@ -148,7 +148,7 @@ func handleSearchClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) ht
 		s, err := q.GetNNextSearchScrapeForUpdate(
 			r.Context(),
 			dbgen.GetNNextSearchScrapeForUpdateParams{
-				Limit: 1, Column2: []string{ScrapeStatusGood}},
+				Count: 1, Statuses: []string{ScrapeStatusGood}},
 		)
 		if err == pgx.ErrNoRows {
 			writeEmptyResultError(w)
