@@ -11,11 +11,11 @@ import (
 )
 
 type LastPropertyPriceEvent struct {
-	EventID          int32            `json:"event_id"`
+	EventID          pgtype.Int4      `json:"event_id"`
 	PropertyID       int32            `json:"property_id"`
 	ListingID        int32            `json:"listing_id"`
 	Price            int32            `json:"price"`
-	EventDescription pgtype.Text      `json:"event_description"`
+	EventDescription string           `json:"event_description"`
 	Source           pgtype.Text      `json:"source"`
 	SourceID         pgtype.Text      `json:"source_id"`
 	EventTS          pgtype.Timestamp `json:"event_ts"`
@@ -40,7 +40,7 @@ type PropertyBlocklist struct {
 }
 
 type PropertyEvent struct {
-	EventID          int32            `json:"event_id"`
+	EventID          pgtype.Int4      `json:"event_id"`
 	PropertyID       int32            `json:"property_id"`
 	ListingID        int32            `json:"listing_id"`
 	Price            int32            `json:"price"`

@@ -19,7 +19,7 @@ func getPropertyBucket() (string, error) {
 }
 
 func getPropertyKey(ctx context.Context, q *dbgen.Queries, pid, lid int32, basename string) (string, error) {
-	p, err := q.GetProperty(ctx, dbgen.GetPropertyParams{PropertyID: pid, ListingID: lid})
+	p, err := q.GetPropertyBasic(ctx, dbgen.GetPropertyBasicParams{PropertyID: pid, ListingID: lid})
 	if err != nil {
 		return "", err
 	}

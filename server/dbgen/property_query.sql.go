@@ -79,7 +79,9 @@ type GetNNextPropertyScrapeForUpdateParams struct {
 
 // Get the next N property entries that have a last_scrape_status in the
 // supplied slice. Rows are locked for update; callers are expected to set
-// status rows to PENDING after retrieving rows.
+// status rows to PENDING after retrieving rows. Note that this query uses
+// the "basic" property table, and NOT the property_price view because
+// callers may expect this to return properties with no price events.
 func (q *Queries) GetNNextPropertyScrapeForUpdate(ctx context.Context, arg GetNNextPropertyScrapeForUpdateParams) (Property, error) {
 	row := q.db.QueryRow(ctx, getNNextPropertyScrapeForUpdate, arg.Statuses, arg.Count)
 	var i Property
@@ -98,25 +100,75 @@ func (q *Queries) GetNNextPropertyScrapeForUpdate(ctx context.Context, arg GetNN
 	return i, err
 }
 
-const getProperties = `-- name: GetProperties :many
-SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_checksums
-FROM property_price
+const getPropertiesBasic = `-- name: GetPropertiesBasic :many
+SELECT property_id, listing_id, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_checksums
+FROM property
 WHERE
-  (property_id = $1 OR $1 IS NULL) OR
-  (listing_id = $2 OR $2 IS NULL) OR
-  (last_scrape_status = $3 OR $3 IS NULL)
+  (property_id = $1 OR $1 = 0) AND
+  (listing_id = $2 OR $2 = 0) AND
+  (last_scrape_status = $3 OR $3 IS NULL OR $3 = '')
 ORDER BY property_id
 `
 
-type GetPropertiesParams struct {
+type GetPropertiesBasicParams struct {
 	PropertyID       int32       `json:"property_id"`
 	ListingID        int32       `json:"listing_id"`
 	LastScrapeStatus pgtype.Text `json:"last_scrape_status"`
 }
 
-// FIXME: test this
-func (q *Queries) GetProperties(ctx context.Context, arg GetPropertiesParams) ([]PropertyPrice, error) {
-	rows, err := q.db.Query(ctx, getProperties, arg.PropertyID, arg.ListingID, arg.LastScrapeStatus)
+// FIXME: It is unfortunate that the current implementation relies on the zero
+// value of the Go type. This might be fixable by using the pgtype.
+func (q *Queries) GetPropertiesBasic(ctx context.Context, arg GetPropertiesBasicParams) ([]Property, error) {
+	rows, err := q.db.Query(ctx, getPropertiesBasic, arg.PropertyID, arg.ListingID, arg.LastScrapeStatus)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Property
+	for rows.Next() {
+		var i Property
+		if err := rows.Scan(
+			&i.PropertyID,
+			&i.ListingID,
+			&i.URL,
+			&i.Zipcode,
+			&i.City,
+			&i.State,
+			&i.Location,
+			&i.LastScrapeTS,
+			&i.LastScrapeStatus,
+			&i.LastScrapeChecksums,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPropertiesWithPrice = `-- name: GetPropertiesWithPrice :many
+SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_checksums
+FROM property_price
+WHERE
+  (property_id = $1 OR $1 = 0) AND
+  (listing_id = $2 OR $2 = 0) AND
+  (last_scrape_status = $3 OR $3 IS NULL OR $3 = '')
+ORDER BY property_id
+`
+
+type GetPropertiesWithPriceParams struct {
+	PropertyID       int32       `json:"property_id"`
+	ListingID        int32       `json:"listing_id"`
+	LastScrapeStatus pgtype.Text `json:"last_scrape_status"`
+}
+
+// FIXME: It is unfortunate that the current implementation relies on the zero
+// value of the Go type. This might be fixable by using the pgtype.
+func (q *Queries) GetPropertiesWithPrice(ctx context.Context, arg GetPropertiesWithPriceParams) ([]PropertyPrice, error) {
+	rows, err := q.db.Query(ctx, getPropertiesWithPrice, arg.PropertyID, arg.ListingID, arg.LastScrapeStatus)
 	if err != nil {
 		return nil, err
 	}
@@ -147,20 +199,50 @@ func (q *Queries) GetProperties(ctx context.Context, arg GetPropertiesParams) ([
 	return items, nil
 }
 
-const getProperty = `-- name: GetProperty :one
+const getPropertyBasic = `-- name: GetPropertyBasic :one
+SELECT property_id, listing_id, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_checksums
+FROM property
+WHERE property_id = $1 AND listing_id = $2
+LIMIT 1
+`
+
+type GetPropertyBasicParams struct {
+	PropertyID int32 `json:"property_id"`
+	ListingID  int32 `json:"listing_id"`
+}
+
+func (q *Queries) GetPropertyBasic(ctx context.Context, arg GetPropertyBasicParams) (Property, error) {
+	row := q.db.QueryRow(ctx, getPropertyBasic, arg.PropertyID, arg.ListingID)
+	var i Property
+	err := row.Scan(
+		&i.PropertyID,
+		&i.ListingID,
+		&i.URL,
+		&i.Zipcode,
+		&i.City,
+		&i.State,
+		&i.Location,
+		&i.LastScrapeTS,
+		&i.LastScrapeStatus,
+		&i.LastScrapeChecksums,
+	)
+	return i, err
+}
+
+const getPropertyWithPrice = `-- name: GetPropertyWithPrice :one
 SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_checksums
 FROM property_price
 WHERE property_id = $1 AND listing_id = $2
 LIMIT 1
 `
 
-type GetPropertyParams struct {
+type GetPropertyWithPriceParams struct {
 	PropertyID int32 `json:"property_id"`
 	ListingID  int32 `json:"listing_id"`
 }
 
-func (q *Queries) GetProperty(ctx context.Context, arg GetPropertyParams) (PropertyPrice, error) {
-	row := q.db.QueryRow(ctx, getProperty, arg.PropertyID, arg.ListingID)
+func (q *Queries) GetPropertyWithPrice(ctx context.Context, arg GetPropertyWithPriceParams) (PropertyPrice, error) {
+	row := q.db.QueryRow(ctx, getPropertyWithPrice, arg.PropertyID, arg.ListingID)
 	var i PropertyPrice
 	err := row.Scan(
 		&i.PropertyID,

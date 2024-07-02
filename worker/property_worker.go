@@ -6,6 +6,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -284,6 +285,11 @@ func handlePropertyBytes(end string, h http.Header, l *slog.Logger, p *dbgen.Pro
 			return fmt.Errorf("error serializing property history events (property_id: %d, listing_id: %d): %w", p.PropertyID, p.ListingID, err)
 		}
 		if err = createPropertyEvents(end, h, b); err != nil {
+			// duplicate events are currently expected, so just return
+			if errors.Is(err, errDuplicateEvent) {
+				l.Debug("duplicate history event(s)", "property_id", p.PropertyID, "listing_id", p.ListingID)
+				return nil
+			}
 			return fmt.Errorf("error uploading property history events: %w", err)
 		}
 		return nil
@@ -536,6 +542,8 @@ func createRealtor(end string, h http.Header, b []byte) error {
 	return nil
 }
 
+var errDuplicateEvent = errors.New(http.StatusText(http.StatusConflict))
+
 // helper function to POST /property-events
 func createPropertyEvents(end string, h http.Header, b []byte) error {
 	req, err := http.NewRequest(
@@ -557,6 +565,9 @@ func createPropertyEvents(end string, h http.Header, b []byte) error {
 		return fmt.Errorf("error reading create PropertyEvents response body: %w", err)
 	}
 	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusConflict {
+			return errDuplicateEvent
+		}
 		return fmt.Errorf("error with create PropertyEvents response: %s", string(b))
 	}
 	return nil

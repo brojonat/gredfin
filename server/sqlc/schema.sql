@@ -50,7 +50,8 @@ CREATE TABLE property_events (
   source_id VARCHAR(32),
   event_ts TIMESTAMP DEFAULT '19700101 00:00:00'::TIMESTAMP,
   FOREIGN KEY (property_id, listing_id) REFERENCES property (property_id, listing_id) ON DELETE CASCADE,
-  PRIMARY KEY (event_id)
+  UNIQUE (event_id),
+  PRIMARY KEY (property_id, listing_id, event_description, event_ts)
 );
 
 -- NOTE: Annoyingly, atlas isn't applying the following views. I need to debug
@@ -61,11 +62,11 @@ CREATE OR REPLACE VIEW last_property_price_event AS
 SELECT p.event_id, p.property_id, p.listing_id, p.price, p.event_description, p.source, p.source_id , p.event_ts
 FROM property_events p
 INNER JOIN (
-	SELECT property_id, MAX(ipe.event_ts) AS max_event_ts
+	SELECT ipe.property_id, ipe.listing_id, MAX(ipe.event_ts) AS max_event_ts
 	FROM property_events ipe
-	WHERE price != 0
-	GROUP BY property_id
-) AS pe ON p.event_ts = pe.max_event_ts;
+	WHERE ipe.price != 0
+	GROUP BY (ipe.property_id, ipe.listing_id)
+) AS pe ON p.property_id = pe.property_id and p.listing_id = pe.listing_id AND p.event_ts = pe.max_event_ts;
 
 -- returns the property with the price of its most recent event
 CREATE OR REPLACE VIEW property_price AS

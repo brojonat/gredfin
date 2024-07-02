@@ -56,6 +56,8 @@ sql:
             go_type: "int32"
           - column: "property_events.price"
             go_type: "int32"
+          - column: "property_events.event_description"
+            go_type: "github.com/jackc/pgx/v5/pgtype.Text"
 
           # last_property_price_event view overrides
           - column: "last_property_price_event.property_id"

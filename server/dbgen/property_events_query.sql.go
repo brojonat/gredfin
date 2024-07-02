@@ -63,11 +63,11 @@ const getPropertyEvents = `-- name: GetPropertyEvents :many
 SELECT event_id, property_id, listing_id, price, event_description, source, source_id, event_ts
 FROM property_events
 WHERE
-  (property_id = $1 OR $1 IS NULL) OR
-  (listing_id = $2 OR $2 IS NULL) OR
-  (event_description = $3 OR $3 IS NULL) OR
-  (source = $4 OR $4 IS NULL) OR
-  (source_id = $5 OR $5 IS NULL)
+  (property_id = $1 OR $1 = 0) AND
+  (listing_id = $2 OR $2 = 0) AND
+  (event_description = $3 OR $3 IS NULL OR $3 = '') AND
+  (source = $4 OR $4 IS NULL OR $4 = '') AND
+  (source_id = $5 OR $5 IS NULL OR $5 = '')
 ORDER BY event_ts
 `
 
@@ -79,7 +79,10 @@ type GetPropertyEventsParams struct {
 	SourceID         pgtype.Text `json:"source_id"`
 }
 
-// GetPropertyEvents uses an exemplar pattern for SQLC filtering.
+// GetPropertyEvents uses an exemplar pattern for SQLC filtering. FIXME: It is
+// unfortunate that the current implementation relies on the zero value of the
+// Go type. This might be fixable by using the pgtype but I don't have time
+// right now.
 func (q *Queries) GetPropertyEvents(ctx context.Context, arg GetPropertyEventsParams) ([]PropertyEvent, error) {
 	rows, err := q.db.Query(ctx, getPropertyEvents,
 		arg.PropertyID,
