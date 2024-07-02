@@ -57,18 +57,14 @@ CREATE TABLE property_events (
 -- NOTE: Annoyingly, atlas isn't applying the following views. I need to debug
 -- why, but for now, note that these were manually added to the DB.
 
--- returns the most recent row for every property_id
+-- This view returns the most recent price event for every property listing.
 CREATE OR REPLACE VIEW last_property_price_event AS
-SELECT p.event_id, p.property_id, p.listing_id, p.price, p.event_description, p.source, p.source_id , p.event_ts
-FROM property_events p
-INNER JOIN (
-	SELECT ipe.property_id, ipe.listing_id, MAX(ipe.event_ts) AS max_event_ts
-	FROM property_events ipe
-	WHERE ipe.price != 0
-	GROUP BY (ipe.property_id, ipe.listing_id)
-) AS pe ON p.property_id = pe.property_id and p.listing_id = pe.listing_id AND p.event_ts = pe.max_event_ts;
+SELECT DISTINCT ON (property_id, listing_id) event_id, property_id, listing_id, price, event_description, source, source_id , event_ts
+FROM property_events
+WHERE price != 0
+ORDER BY property_id, listing_id, event_ts DESC, price DESC;
 
--- returns the property with the price of its most recent event
+-- This view returns properties with the price extracted from its most recent event.
 CREATE OR REPLACE VIEW property_price AS
 SELECT
   p.property_id,
@@ -83,4 +79,6 @@ SELECT
   p.last_scrape_status,
   p.last_scrape_checksums
 FROM property p
-INNER JOIN last_property_price_event pe ON p.property_id = pe.property_id;
+INNER JOIN last_property_price_event pe ON
+	p.property_id = pe.property_id AND
+	p.listing_id = pe.listing_id;
