@@ -23,20 +23,18 @@ func handlePlotDataRealtorPrices(l *slog.Logger, q *dbgen.Queries) http.HandlerF
 		}
 
 		switch v {
-		// This case returns a list of { xData, yData } objects representing the
-		// realtor's binned prices. This could be updated to better suite the
-		// SF_CartesianChart API.
+		// This case returns a list of { price } objects representing the
+		// realtor's prices.
 		case "", "1":
 			res := []struct {
-				X float64 `json:"xData"`
-				Y float64 `json:"yData"`
+				Y float64 `json:"price"`
 			}{
-				{0, 0},
-				{1, 10},
-				{2, 25},
-				{3, 33},
-				{4, 38},
-				{5, 55},
+				{0},
+				{10},
+				{25},
+				{33},
+				{38},
+				{55},
 			}
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(res)
