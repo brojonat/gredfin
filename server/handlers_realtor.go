@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// helper interface for searching realtors while we tinker with the underlying inmplementation
+// helper interface for searching realtors while we tinker with the underlying implementation
 func searchRealtors(ctx context.Context, q *dbgen.Queries, s string) ([]dbgen.ListRealtorsRow, error) {
 	if s == "" {
 		return q.ListRealtors(ctx)
@@ -225,30 +225,5 @@ func handleRealtorDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
-	}
-}
-
-// returns HTML that clients can use to display a D3 plot.
-func handleRealtorPriceDistPlot(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		name := r.URL.Query().Get("name")
-		if name == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "must supply realtor name"})
-			return
-		}
-		res := []struct {
-			X float64 `json:"xData"`
-			Y float64 `json:"yData"`
-		}{
-			{0, 0},
-			{1, 10},
-			{2, 25},
-			{3, 33},
-			{4, 38},
-			{5, 55},
-		}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(res)
 	}
 }

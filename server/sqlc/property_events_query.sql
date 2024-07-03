@@ -16,8 +16,7 @@ WHERE url = $1;
 
 -- GetPropertyEvents uses an exemplar pattern for SQLC filtering. FIXME: It is
 -- unfortunate that the current implementation relies on the zero value of the
--- Go type. This might be fixable by using the pgtype but I don't have time
--- right now.
+-- Go type. This might be fixable by using the pgtype.
 -- name: GetPropertyEvents :many
 SELECT *
 FROM property_events
@@ -36,6 +35,12 @@ INSERT INTO property_events (
   $1, $2, $3, $4, $5, $6, $7
 );
 
--- name: DeletePropertyEvent :exec
+-- name: DeletePropertyEvents :exec
 DELETE FROM property_events
 WHERE event_id = ANY(sqlc.arg(ids)::INT[]);
+
+-- name: DeletePropertyEventsByProperty :exec
+DELETE FROM property_events
+WHERE
+  (property_id = @property_id) AND
+  (listing_id = @listing_id OR @listing_id = 0);

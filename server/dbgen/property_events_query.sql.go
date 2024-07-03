@@ -49,13 +49,30 @@ func (q *Queries) DeleteBlocklistedProperty(ctx context.Context, url string) err
 	return err
 }
 
-const deletePropertyEvent = `-- name: DeletePropertyEvent :exec
+const deletePropertyEvents = `-- name: DeletePropertyEvents :exec
 DELETE FROM property_events
 WHERE event_id = ANY($1::INT[])
 `
 
-func (q *Queries) DeletePropertyEvent(ctx context.Context, ids []int32) error {
-	_, err := q.db.Exec(ctx, deletePropertyEvent, ids)
+func (q *Queries) DeletePropertyEvents(ctx context.Context, ids []int32) error {
+	_, err := q.db.Exec(ctx, deletePropertyEvents, ids)
+	return err
+}
+
+const deletePropertyEventsByProperty = `-- name: DeletePropertyEventsByProperty :exec
+DELETE FROM property_events
+WHERE
+  (property_id = $1) AND
+  (listing_id = $2 OR $2 = 0)
+`
+
+type DeletePropertyEventsByPropertyParams struct {
+	PropertyID int32 `json:"property_id"`
+	ListingID  int32 `json:"listing_id"`
+}
+
+func (q *Queries) DeletePropertyEventsByProperty(ctx context.Context, arg DeletePropertyEventsByPropertyParams) error {
+	_, err := q.db.Exec(ctx, deletePropertyEventsByProperty, arg.PropertyID, arg.ListingID)
 	return err
 }
 
@@ -81,8 +98,7 @@ type GetPropertyEventsParams struct {
 
 // GetPropertyEvents uses an exemplar pattern for SQLC filtering. FIXME: It is
 // unfortunate that the current implementation relies on the zero value of the
-// Go type. This might be fixable by using the pgtype but I don't have time
-// right now.
+// Go type. This might be fixable by using the pgtype.
 func (q *Queries) GetPropertyEvents(ctx context.Context, arg GetPropertyEventsParams) ([]PropertyEvent, error) {
 	rows, err := q.db.Query(ctx, getPropertyEvents,
 		arg.PropertyID,

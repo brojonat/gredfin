@@ -544,10 +544,11 @@ func createRealtor(end string, h http.Header, b []byte) error {
 
 var errDuplicateEvent = errors.New(http.StatusText(http.StatusConflict))
 
-// helper function to POST /property-events
+// Helper function to PUT /property-events. Note that the PUT semantics
+// are such that events will be purged before writing these supplied events.
 func createPropertyEvents(end string, h http.Header, b []byte) error {
 	req, err := http.NewRequest(
-		http.MethodPost,
+		http.MethodPut,
 		fmt.Sprintf("%s/property-events", end),
 		bytes.NewReader(b),
 	)
@@ -565,6 +566,8 @@ func createPropertyEvents(end string, h http.Header, b []byte) error {
 		return fmt.Errorf("error reading create PropertyEvents response body: %w", err)
 	}
 	if res.StatusCode != http.StatusOK {
+		// this shouldn't happen since we're doing a PUT, but we can handle it
+		// gracefully nonetheless
 		if res.StatusCode == http.StatusConflict {
 			return errDuplicateEvent
 		}

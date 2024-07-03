@@ -69,11 +69,6 @@ func getRootHandler(
 		apiMode(l, maxBytes, headers, methods, origins),
 		mustAuth(),
 	))
-	mux.HandleFunc("GET /realtor-plot", adaptHandler(
-		handleRealtorPriceDistPlot(l, q),
-		apiMode(l, maxBytes, headers, methods, origins),
-		mustAuth(),
-	))
 
 	// search CRUDL routes
 	mux.HandleFunc("GET /search", adaptHandler(
@@ -125,6 +120,11 @@ func getRootHandler(
 		apiMode(l, maxBytes, headers, methods, origins),
 		mustAuth(),
 	))
+	mux.HandleFunc("PUT /property-events", adaptHandler(
+		handlePropertyEventsPut(l, p, q),
+		apiMode(l, maxBytes, headers, methods, origins),
+		mustAuth(),
+	))
 	mux.HandleFunc("DELETE /property-events", adaptHandler(
 		handlePropertyEventsDelete(l, q),
 		apiMode(l, maxBytes, headers, methods, origins),
@@ -149,6 +149,18 @@ func getRootHandler(
 	))
 	mux.HandleFunc("POST /property-query/get-presigned-put-url", adaptHandler(
 		handleGetPresignedPutURL(l, s3, q),
+		apiMode(l, maxBytes, headers, methods, origins),
+		mustAuth(),
+	))
+
+	// plot data routes
+	mux.HandleFunc("GET /realtor-plot", adaptHandler(
+		handlePlotDataRealtorPrices(l, q),
+		apiMode(l, maxBytes, headers, methods, origins),
+		mustAuth(),
+	))
+	mux.HandleFunc("GET /property-event-plot", adaptHandler(
+		handlePlotDataPropertyPrices(l, q),
 		apiMode(l, maxBytes, headers, methods, origins),
 		mustAuth(),
 	))
