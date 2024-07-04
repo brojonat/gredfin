@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/brojonat/gredfin/server/dbgen"
+	"github.com/jackc/pgx/v5"
 )
 
 // Writes a list of { price, count } objects representing realtor's binned prices
@@ -26,15 +27,22 @@ func handlePlotDataRealtorPrices(l *slog.Logger, q *dbgen.Queries) http.HandlerF
 		// This case returns a list of { price } objects representing the
 		// realtor's prices.
 		case "", "1":
-			res := []struct {
-				Y float64 `json:"price"`
-			}{
-				{0},
-				{10},
-				{25},
-				{33},
-				{38},
-				{55},
+			events, err := q.GetRealtorPropertiesByName(r.Context(), name)
+			if err != nil {
+				if err == pgx.ErrNoRows {
+					w.WriteHeader(http.StatusNotFound)
+					json.NewEncoder(w).Encode(DefaultJSONResponse{Error: fmt.Sprintf("no properties for realtor %s", name)})
+					return
+				}
+				writeInternalError(l, w, err)
+				return
+			}
+			type rr struct {
+				Price float64 `json:"price"`
+			}
+			res := []rr{}
+			for _, e := range events {
+				res = append(res, rr{float64(e.Price)})
 			}
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(res)
@@ -43,7 +51,6 @@ func handlePlotDataRealtorPrices(l *slog.Logger, q *dbgen.Queries) http.HandlerF
 			writeBadRequestError(w, fmt.Errorf("unsupported version: %s", v))
 			return
 		}
-
 	}
 }
 
