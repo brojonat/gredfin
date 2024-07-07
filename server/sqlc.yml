@@ -41,7 +41,7 @@ sql:
             go_type: "int32"
           - column: "property.listing_id"
             go_type: "int32"
-          - column: "property.last_scrape_checksums"
+          - column: "property.last_scrape_metadata"
             go_type:
               import: "github.com/brojonat/gredfin/server/dbgen/jsonb"
               package: "jsonb"
@@ -74,7 +74,7 @@ sql:
             go_type: "int32"
           - column: "property_price.price"
             go_type: "int32"
-          - column: "property_price.last_scrape_checksums"
+          - column: "property_price.last_scrape_metadata"
             go_type:
               import: "github.com/brojonat/gredfin/server/dbgen/jsonb"
               package: "jsonb"

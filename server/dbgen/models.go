@@ -22,16 +22,16 @@ type LastPropertyPriceEvent struct {
 }
 
 type Property struct {
-	PropertyID          int32                        `json:"property_id"`
-	ListingID           int32                        `json:"listing_id"`
-	URL                 pgtype.Text                  `json:"url"`
-	Zipcode             pgtype.Text                  `json:"zipcode"`
-	City                pgtype.Text                  `json:"city"`
-	State               pgtype.Text                  `json:"state"`
-	Location            *geometry.Geometry           `json:"location"`
-	LastScrapeTS        pgtype.Timestamp             `json:"last_scrape_ts"`
-	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
-	LastScrapeChecksums jsonb.PropertyScrapeMetadata `json:"last_scrape_checksums"`
+	PropertyID         int32                        `json:"property_id"`
+	ListingID          int32                        `json:"listing_id"`
+	URL                pgtype.Text                  `json:"url"`
+	Zipcode            pgtype.Text                  `json:"zipcode"`
+	City               pgtype.Text                  `json:"city"`
+	State              pgtype.Text                  `json:"state"`
+	Location           *geometry.Geometry           `json:"location"`
+	LastScrapeTS       pgtype.Timestamp             `json:"last_scrape_ts"`
+	LastScrapeStatus   pgtype.Text                  `json:"last_scrape_status"`
+	LastScrapeMetadata jsonb.PropertyScrapeMetadata `json:"last_scrape_metadata"`
 }
 
 type PropertyBlocklist struct {
@@ -51,17 +51,17 @@ type PropertyEvent struct {
 }
 
 type PropertyPrice struct {
-	PropertyID          int32                        `json:"property_id"`
-	ListingID           int32                        `json:"listing_id"`
-	Price               int32                        `json:"price"`
-	URL                 pgtype.Text                  `json:"url"`
-	Zipcode             pgtype.Text                  `json:"zipcode"`
-	City                pgtype.Text                  `json:"city"`
-	State               pgtype.Text                  `json:"state"`
-	Location            *geometry.Geometry           `json:"location"`
-	LastScrapeTS        pgtype.Timestamp             `json:"last_scrape_ts"`
-	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
-	LastScrapeChecksums jsonb.PropertyScrapeMetadata `json:"last_scrape_checksums"`
+	PropertyID         int32                        `json:"property_id"`
+	ListingID          int32                        `json:"listing_id"`
+	Price              int32                        `json:"price"`
+	URL                pgtype.Text                  `json:"url"`
+	Zipcode            pgtype.Text                  `json:"zipcode"`
+	City               pgtype.Text                  `json:"city"`
+	State              pgtype.Text                  `json:"state"`
+	Location           *geometry.Geometry           `json:"location"`
+	LastScrapeTS       pgtype.Timestamp             `json:"last_scrape_ts"`
+	LastScrapeStatus   pgtype.Text                  `json:"last_scrape_status"`
+	LastScrapeMetadata jsonb.PropertyScrapeMetadata `json:"last_scrape_metadata"`
 }
 
 type Realtor struct {

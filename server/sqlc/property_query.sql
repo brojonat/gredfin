@@ -71,7 +71,7 @@ UPDATE property
   location = $7,
   last_scrape_ts = $8,
   last_scrape_status = $9,
-  last_scrape_checksums = $10
+  last_scrape_metadata = $10
 WHERE property_id = $1 AND listing_id = $2;
 
 -- name: UpdatePropertyStatus :exec

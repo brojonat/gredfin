@@ -64,7 +64,7 @@ func (q *Queries) DeletePropertyListingsByID(ctx context.Context, propertyID int
 }
 
 const getNNextPropertyScrapeForUpdate = `-- name: GetNNextPropertyScrapeForUpdate :one
-SELECT property_id, listing_id, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_checksums
+SELECT property_id, listing_id, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata
 FROM property
 WHERE last_scrape_status = ANY($1::VARCHAR[])
 ORDER BY NOW()::timestamp - last_scrape_ts DESC
@@ -95,13 +95,13 @@ func (q *Queries) GetNNextPropertyScrapeForUpdate(ctx context.Context, arg GetNN
 		&i.Location,
 		&i.LastScrapeTS,
 		&i.LastScrapeStatus,
-		&i.LastScrapeChecksums,
+		&i.LastScrapeMetadata,
 	)
 	return i, err
 }
 
 const getPropertiesBasic = `-- name: GetPropertiesBasic :many
-SELECT property_id, listing_id, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_checksums
+SELECT property_id, listing_id, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata
 FROM property
 WHERE
   (property_id = $1 OR $1 = 0) AND
@@ -137,7 +137,7 @@ func (q *Queries) GetPropertiesBasic(ctx context.Context, arg GetPropertiesBasic
 			&i.Location,
 			&i.LastScrapeTS,
 			&i.LastScrapeStatus,
-			&i.LastScrapeChecksums,
+			&i.LastScrapeMetadata,
 		); err != nil {
 			return nil, err
 		}
@@ -150,7 +150,7 @@ func (q *Queries) GetPropertiesBasic(ctx context.Context, arg GetPropertiesBasic
 }
 
 const getPropertiesWithPrice = `-- name: GetPropertiesWithPrice :many
-SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_checksums
+SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata
 FROM property_price
 WHERE
   (property_id = $1 OR $1 = 0) AND
@@ -187,7 +187,7 @@ func (q *Queries) GetPropertiesWithPrice(ctx context.Context, arg GetPropertiesW
 			&i.Location,
 			&i.LastScrapeTS,
 			&i.LastScrapeStatus,
-			&i.LastScrapeChecksums,
+			&i.LastScrapeMetadata,
 		); err != nil {
 			return nil, err
 		}
@@ -200,7 +200,7 @@ func (q *Queries) GetPropertiesWithPrice(ctx context.Context, arg GetPropertiesW
 }
 
 const getPropertyBasic = `-- name: GetPropertyBasic :one
-SELECT property_id, listing_id, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_checksums
+SELECT property_id, listing_id, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata
 FROM property
 WHERE property_id = $1 AND listing_id = $2
 LIMIT 1
@@ -224,13 +224,13 @@ func (q *Queries) GetPropertyBasic(ctx context.Context, arg GetPropertyBasicPara
 		&i.Location,
 		&i.LastScrapeTS,
 		&i.LastScrapeStatus,
-		&i.LastScrapeChecksums,
+		&i.LastScrapeMetadata,
 	)
 	return i, err
 }
 
 const getPropertyWithPrice = `-- name: GetPropertyWithPrice :one
-SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_checksums
+SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata
 FROM property_price
 WHERE property_id = $1 AND listing_id = $2
 LIMIT 1
@@ -255,13 +255,13 @@ func (q *Queries) GetPropertyWithPrice(ctx context.Context, arg GetPropertyWithP
 		&i.Location,
 		&i.LastScrapeTS,
 		&i.LastScrapeStatus,
-		&i.LastScrapeChecksums,
+		&i.LastScrapeMetadata,
 	)
 	return i, err
 }
 
 const listProperties = `-- name: ListProperties :many
-SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_checksums
+SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata
 FROM property_price
 ORDER BY property_id
 `
@@ -286,7 +286,7 @@ func (q *Queries) ListProperties(ctx context.Context) ([]PropertyPrice, error) {
 			&i.Location,
 			&i.LastScrapeTS,
 			&i.LastScrapeStatus,
-			&i.LastScrapeChecksums,
+			&i.LastScrapeMetadata,
 		); err != nil {
 			return nil, err
 		}
@@ -299,7 +299,7 @@ func (q *Queries) ListProperties(ctx context.Context) ([]PropertyPrice, error) {
 }
 
 const listPropertiesPrices = `-- name: ListPropertiesPrices :many
-SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_checksums
+SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata
 FROM property_price p
 ORDER BY p.property_id
 `
@@ -324,7 +324,7 @@ func (q *Queries) ListPropertiesPrices(ctx context.Context) ([]PropertyPrice, er
 			&i.Location,
 			&i.LastScrapeTS,
 			&i.LastScrapeStatus,
-			&i.LastScrapeChecksums,
+			&i.LastScrapeMetadata,
 		); err != nil {
 			return nil, err
 		}
@@ -345,21 +345,21 @@ UPDATE property
   location = $7,
   last_scrape_ts = $8,
   last_scrape_status = $9,
-  last_scrape_checksums = $10
+  last_scrape_metadata = $10
 WHERE property_id = $1 AND listing_id = $2
 `
 
 type PutPropertyParams struct {
-	PropertyID          int32                        `json:"property_id"`
-	ListingID           int32                        `json:"listing_id"`
-	URL                 pgtype.Text                  `json:"url"`
-	Zipcode             pgtype.Text                  `json:"zipcode"`
-	City                pgtype.Text                  `json:"city"`
-	State               pgtype.Text                  `json:"state"`
-	Location            *geometry.Geometry           `json:"location"`
-	LastScrapeTS        pgtype.Timestamp             `json:"last_scrape_ts"`
-	LastScrapeStatus    pgtype.Text                  `json:"last_scrape_status"`
-	LastScrapeChecksums jsonb.PropertyScrapeMetadata `json:"last_scrape_checksums"`
+	PropertyID         int32                        `json:"property_id"`
+	ListingID          int32                        `json:"listing_id"`
+	URL                pgtype.Text                  `json:"url"`
+	Zipcode            pgtype.Text                  `json:"zipcode"`
+	City               pgtype.Text                  `json:"city"`
+	State              pgtype.Text                  `json:"state"`
+	Location           *geometry.Geometry           `json:"location"`
+	LastScrapeTS       pgtype.Timestamp             `json:"last_scrape_ts"`
+	LastScrapeStatus   pgtype.Text                  `json:"last_scrape_status"`
+	LastScrapeMetadata jsonb.PropertyScrapeMetadata `json:"last_scrape_metadata"`
 }
 
 func (q *Queries) PutProperty(ctx context.Context, arg PutPropertyParams) error {
@@ -373,7 +373,7 @@ func (q *Queries) PutProperty(ctx context.Context, arg PutPropertyParams) error 
 		arg.Location,
 		arg.LastScrapeTS,
 		arg.LastScrapeStatus,
-		arg.LastScrapeChecksums,
+		arg.LastScrapeMetadata,
 	)
 	return err
 }

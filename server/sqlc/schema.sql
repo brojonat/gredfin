@@ -10,7 +10,7 @@ CREATE TABLE property (
   location GEOMETRY(Point, 4326) NOT NULL,
   last_scrape_ts TIMESTAMP DEFAULT '19700101 00:00:00'::TIMESTAMP,
   last_scrape_status VARCHAR(16) DEFAULT 'good',
-  last_scrape_checksums JSONB NOT NULL DEFAULT '{}'::JSONB,
+  last_scrape_metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
   PRIMARY KEY (property_id, listing_id)
 );
 
@@ -82,7 +82,7 @@ SELECT
   p.location,
   p.last_scrape_ts,
   p.last_scrape_status,
-  p.last_scrape_checksums
+  p.last_scrape_metadata
 FROM property p
 INNER JOIN last_property_price_event pe ON
 	p.property_id = pe.property_id AND
