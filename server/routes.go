@@ -60,7 +60,7 @@ func getRootHandler(
 		mustAuth(),
 	))
 	mux.HandleFunc("POST /realtor", adaptHandler(
-		handleRealtorPost(l, q),
+		handleRealtorPost(l, p, q),
 		apiMode(l, maxBytes, headers, methods, origins),
 		mustAuth(),
 	))

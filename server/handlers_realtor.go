@@ -1,67 +1,27 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/brojonat/gredfin/server/dbgen"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-// helper interface for searching realtors while we tinker with the underlying implementation
-func searchRealtors(ctx context.Context, q *dbgen.Queries, s string) ([]dbgen.ListRealtorsRow, error) {
-	if s == "" {
-		return q.ListRealtors(ctx)
-	}
-	rs, err := q.ListRealtors(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	keep := []dbgen.ListRealtorsRow{}
-	s = strings.ToLower(s)
-	for _, r := range rs {
-		normName := strings.ToLower(r.Name)
-		normCompany := strings.ToLower(r.Company)
-		// other strings like zipcode, month, etc...
-
-		if strings.Contains(normName, s) {
-			keep = append(keep, r)
-			continue
-		}
-		if strings.Contains(normCompany, s) {
-			keep = append(keep, r)
-			continue
-		}
-		// other contains conditions...
-	}
-	return keep, nil
-}
 
 func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		realtorID := r.URL.Query().Get("id")
 		name := r.URL.Query().Get("name")
 		search := r.URL.Query().Get("search")
-		pi := r.URL.Query().Get("property_info")
-		var details bool
-		var err error
-		if pi != "" {
-			details, err = strconv.ParseBool(pi)
-			if err != nil {
-				writeBadRequestError(w, err)
-				return
-			}
-		}
 
-		// no identifiers, return whole listing
+		// no identifiers, return listings based on search (if unspecified, all
+		// rows will be returned)
 		if realtorID == "" && name == "" {
-			rs, err := searchRealtors(r.Context(), q, search)
+			rs, err := q.SearchRealtorProperties(r.Context(), search)
 			if err == pgx.ErrNoRows || len(rs) == 0 {
 				writeEmptyResultError(w)
 				return
@@ -75,14 +35,14 @@ func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			return
 		}
 
-		// realtor_id specified, return the specific row
+		// realtor_id specified, return listings under that id
 		if realtorID != "" {
 			rid, err := strconv.Atoi(realtorID)
 			if err != nil {
 				writeInternalError(l, w, err)
 				return
 			}
-			rs, err := q.GetRealtorProperties(r.Context(), int32(rid))
+			rs, err := q.GetRealtorProperties(r.Context(), dbgen.GetRealtorPropertiesParams{RealtorID: int32(rid)})
 			if err == pgx.ErrNoRows {
 				writeEmptyResultError(w)
 				return
@@ -96,53 +56,25 @@ func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			return
 		}
 
-		// Name specified, return realtor entries under that name. NOTE: there
-		// may be multiple realtors with the same name; callers can filter on
-		// company if necessary.
-		if name != "" {
-			if details {
-				writeRealtorPropertiesFull(r.Context(), l, q, w, name)
-				return
-			}
-			writeRealtorProperties(r.Context(), l, q, w, name)
+		// name specified, return listings under that name
+		rs, err := q.GetRealtorProperties(r.Context(), dbgen.GetRealtorPropertiesParams{Name: name})
+		if err == pgx.ErrNoRows {
+			writeEmptyResultError(w)
 			return
 		}
-
+		if err != nil {
+			writeInternalError(l, w, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(rs)
 	}
 }
 
-func writeRealtorProperties(ctx context.Context, l *slog.Logger, q *dbgen.Queries, w http.ResponseWriter, name string) {
-	rs, err := q.GetRealtorPropertiesByName(ctx, name)
-	if err == pgx.ErrNoRows {
-		writeEmptyResultError(w)
-		return
-	}
-	if err != nil {
-		writeInternalError(l, w, err)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(rs)
-}
-
-func writeRealtorPropertiesFull(ctx context.Context, l *slog.Logger, q *dbgen.Queries, w http.ResponseWriter, name string) {
-	rs, err := q.GetRealtorPropertiesFullByName(ctx, name)
-	if err == pgx.ErrNoRows {
-		writeEmptyResultError(w)
-		return
-	}
-	if err != nil {
-		writeInternalError(l, w, err)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(rs)
-}
-
-func handleRealtorPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+func handleRealtorPost(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var p dbgen.CreateRealtorParams
-		err := decodeJSONBody(r, &p)
+		var data PostRealtorBody
+		err := decodeJSONBody(r, &data)
 		if err != nil {
 			var mr *MalformedRequest
 			if errors.As(err, &mr) {
@@ -153,25 +85,49 @@ func handleRealtorPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			}
 			return
 		}
+
+		// start a transaction to create the realtor and the through table entry
+		tx, err := p.Begin(r.Context())
+		if err != nil {
+			writeInternalError(l, w, err)
+			return
+		}
+		defer tx.Commit(r.Context())
+		q = q.WithTx(tx)
+
 		// Ignore conflicts quietly since we expect workers to spam this route
-		// with possible duplicates. However, note that the implementation of
-		// the realtor table is such that the unique index includes the price,
-		// so by spamming this route continuously, we'll build up a price
-		// history for each realtor for a particular property. Additionally, the
-		// server implementation should use an "on conflict do nothing" clause,
-		// so errors shouldn't be thrown anyway.
-		err = q.CreateRealtor(r.Context(), p)
+		// with possible duplicates. This query should "do nothing" on conflicts
+		// anyway.
+		realtor, err := q.GetRealtor(r.Context(), dbgen.GetRealtorParams{Name: data.Name, Company: data.Company})
+		if err == pgx.ErrNoRows {
+			err = q.CreateRealtor(r.Context(), dbgen.CreateRealtorParams{Name: data.Name, Company: data.Company})
+			if err != nil {
+				if !isPGError(err, pgErrorUniqueViolation) {
+					writeInternalError(l, w, err)
+					return
+				}
+				l.Debug("duplicate key for realtor", "name", data.Name, "company", data.Company)
+			}
+		}
+		realtor, err = q.GetRealtor(r.Context(), dbgen.GetRealtorParams{Name: data.Name, Company: data.Company})
+		if err != nil {
+			writeInternalError(l, w, err)
+			return
+		}
+
+		err = q.CreateRealtorPropertyListing(r.Context(), dbgen.CreateRealtorPropertyListingParams{
+			RealtorID: realtor.RealtorID, PropertyID: data.PropertyID, ListingID: data.ListingID})
 		if err != nil {
 			if !isPGError(err, pgErrorUniqueViolation) {
 				writeInternalError(l, w, err)
 				return
 			}
-			l.Debug("duplicate key for realtor", "realtor", p.Name, "property_id", p.PropertyID, "listing_id", p.ListingID)
-			return
+			l.Debug("duplicate key for realtor property listing", "name", data.Name, "company", data.Company, "property_id", data.PropertyID, "listing_id", data.ListingID)
 		}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
 	}
+
 }
 
 func handleRealtorDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {

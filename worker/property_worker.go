@@ -303,11 +303,11 @@ func handlePropertyBytes(end string, h http.Header, l *slog.Logger, p *dbgen.Pro
 		if err != nil {
 			return fmt.Errorf("error extracting realtor: %w", err)
 		}
-		r := dbgen.CreateRealtorParams{
-			PropertyID: p.PropertyID,
-			ListingID:  p.ListingID,
+		r := server.PostRealtorBody{
 			Name:       name,
 			Company:    company,
+			PropertyID: p.PropertyID,
+			ListingID:  p.ListingID,
 		}
 
 		b, err := json.Marshal(r)
@@ -352,17 +352,17 @@ func handlePropertyBytes(end string, h http.Header, l *slog.Logger, p *dbgen.Pro
 
 	// parse and upload the property data to the server
 	if err := parseUploadProperty(); err != nil {
-		return fmt.Errorf("error uploading property: %w", err)
+		return err
 	}
 
 	// parse and upload the property data to the server
 	if err := parseUploadPropertyEvents(); err != nil {
-		return fmt.Errorf("error uploading property history events: %w", err)
+		return err
 	}
 
 	// parse and upload the realtor data for this property to the server
 	if err := parseUploadRealtor(); err != nil {
-		return fmt.Errorf("error uploading realtor: %w", err)
+		return err
 	}
 
 	// now (maybe) do S3 uploads to the cloud object store
@@ -537,7 +537,7 @@ func createRealtor(end string, h http.Header, b []byte) error {
 		return fmt.Errorf("could not parse create Realtor response body: %w", err)
 	}
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected response code for create Realtor: %s (%s)", res.Status, body.Error)
+		return fmt.Errorf("unexpected response code for POST /realtor: %s (%s)", res.Status, body.Error)
 	}
 	return nil
 }

@@ -12,11 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type DefaultJSONResponse struct {
-	Message string `json:"message,omitempty"`
-	Error   string `json:"error,omitempty"`
-}
-
 func writeInternalError(l *slog.Logger, w http.ResponseWriter, e error) {
 	var pcs [1]uintptr
 	runtime.Callers(2, pcs[:]) // skip [Callers, Infof]

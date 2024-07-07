@@ -27,7 +27,7 @@ func handlePlotDataRealtorPrices(l *slog.Logger, q *dbgen.Queries) http.HandlerF
 		// This case returns a list of { price } objects representing the
 		// realtor's prices.
 		case "", "1":
-			events, err := q.GetRealtorPropertiesByName(r.Context(), name)
+			events, err := q.GetRealtorProperties(r.Context(), dbgen.GetRealtorPropertiesParams{Name: name})
 			if err != nil {
 				if err == pgx.ErrNoRows {
 					w.WriteHeader(http.StatusNotFound)

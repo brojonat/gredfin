@@ -1,98 +1,51 @@
+-- name: GetRealtor :one
+SELECT *
+FROM realtor
+WHERE name = @name AND company = @company;
+
 -- name: GetRealtorProperties :many
-SELECT
-  r.realtor_id,
-  r.name,
-  r.company,
-  r.created_ts,
-  p.property_id,
-  p.listing_id,
-  p.url,
-  p.zipcode,
-  p.city,
-  p.state,
-  p.location,
-  p.price
+SELECT *
 FROM realtor r
+INNER JOIN realtor_property_through rp
+  ON r.realtor_id = rp.realtor_id
 INNER JOIN property_price p
-  ON r.property_id = p.property_id AND r.listing_id = p.listing_id
-WHERE realtor_id = $1;
+  ON rp.property_id = p.property_id AND rp.listing_id = p.listing_id
+WHERE
+  (rp.realtor_id = @realtor_id OR @realtor_id = 0) AND
+  (r.name = @name OR @name = '' OR @name IS NULL)
+  -- FIXME: add a bunch more filters, this is the main query
+ORDER BY r.name;
 
--- name: GetRealtorPropertiesByName :many
-SELECT
-  r.realtor_id,
-  r.name,
-  r.company,
-  r.created_ts,
-  p.property_id,
-  p.listing_id,
-  p.url,
-  p.zipcode,
-  p.city,
-  p.state,
-  p.location,
-  p.price
+-- name: SearchRealtorProperties :many
+SELECT *
 FROM realtor r
+INNER JOIN realtor_property_through rp
+  ON r.realtor_id = rp.realtor_id
 INNER JOIN property_price p
-  ON r.property_id = p.property_id AND r.listing_id = p.listing_id
-WHERE name = $1;
-
--- name: GetRealtorPropertiesFullByName :many
-SELECT
-  r.realtor_id,
-  r.name,
-  r.company,
-  r.created_ts,
-  p.property_id,
-  p.listing_id,
-  p.url,
-  p.zipcode,
-  p.city,
-  p.state,
-  p.location,
-  p.price
-FROM realtor r
-INNER JOIN property_price p
-  ON r.property_id = p.property_id AND r.listing_id = p.listing_id
-WHERE name = $1;
-
--- name: ListRealtors :many
-SELECT
-  r.realtor_id,
-  r.name,
-  r.company,
-  r.created_ts,
-  p.property_id,
-  p.listing_id,
-  p.url,
-  p.zipcode,
-  p.city,
-  p.state,
-  p.location,
-  p.price
-FROM realtor r
-INNER JOIN property_price p
-  ON r.property_id = p.property_id AND r.listing_id = p.listing_id
-ORDER BY name;
+  ON rp.property_id = p.property_id AND rp.listing_id = p.listing_id
+WHERE
+  (POSITION(LOWER(@search) IN LOWER(r.name)) > 0) OR
+  (POSITION(LOWER(@search) IN LOWER(r.company)) > 0)
+ORDER BY r.name;
 
 -- name: CreateRealtor :exec
 INSERT INTO realtor (
-  name, company, property_id, listing_id, created_ts
+  name, company
 ) VALUES (
-  $1, $2, $3, $4, NOW()::timestamp
-) ON CONFLICT ON CONSTRAINT realtor_pkey DO NOTHING;
-
--- name: PostRealtor :exec
-UPDATE realtor
-  SET name = $2,
-  company = $3,
-  property_id = $4,
-  listing_id = $5
-WHERE realtor_id = $1;
-
--- name: DeleteRealtorListing :exec
-DELETE FROM realtor
-WHERE realtor_id = $1 AND property_id = $2 AND listing_id = $3;
+  @name, @company
+) ON CONFLICT ON CONSTRAINT unique_person DO NOTHING;
 
 -- name: DeleteRealtor :exec
 DELETE FROM realtor
 WHERE realtor_id = $1;
+
+-- name: CreateRealtorPropertyListing :exec
+INSERT INTO realtor_property_through (
+  realtor_id, property_id, listing_id
+) VALUES (
+  @realtor_id, @property_id, @listing_id
+);
+
+-- name: DeleteRealtorPropertyListing :exec
+DELETE FROM realtor_property_through
+WHERE realtor_id = @realtor_id AND property_id = @property_id AND listing_id = @listing_id;

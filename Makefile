@@ -17,7 +17,7 @@ migrate:
 	$(call setup_env, server/.env)
 	atlas schema apply \
 	--url "${DATABASE_URL}" \
-	--dev-url "postgres://postgres:@localhost:5432?sslmode=disable" \
+	--dev-url "postgres://postgres:postgres@localhost:5432?sslmode=disable" \
 	--to "file://server/sqlc/schema.sql"
 
 run-http-server:

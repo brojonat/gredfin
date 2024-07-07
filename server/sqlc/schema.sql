@@ -26,12 +26,17 @@ CREATE TABLE realtor (
   realtor_id SERIAL,
   name VARCHAR(128),
   company VARCHAR(128),
+  PRIMARY KEY (realtor_id),
+  CONSTRAINT unique_person UNIQUE (name, company)
+);
+
+CREATE TABLE realtor_property_through (
+  realtor_id INT,
   property_id INT,
   listing_id INT,
-  created_ts TIMESTAMP NOT NULL DEFAULT '19700101 00:00:00'::TIMESTAMP,
+  FOREIGN KEY (realtor_id) REFERENCES realtor (realtor_id) ON DELETE CASCADE,
   FOREIGN KEY (property_id, listing_id) REFERENCES property (property_id, listing_id) ON DELETE CASCADE,
-  PRIMARY KEY (name, property_id, listing_id),
-  UNIQUE (realtor_id)
+  PRIMARY KEY (realtor_id, property_id, listing_id)
 );
 
 CREATE TABLE property_blocklist (
