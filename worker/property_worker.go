@@ -160,7 +160,7 @@ func MakePropertyWorkerFunc(
 			PropertyID:       p.PropertyID,
 			ListingID:        p.ListingID,
 			LastScrapeStatus: pgtype.Text{String: server.ScrapeStatusGood, Valid: true},
-			LastScrapeChecksums: jsonb.PropertyScrapeMetadata{
+			LastScrapeMetadata: jsonb.PropertyScrapeMetadata{
 				InitialInfoHash: hashBytes(iiRes.Payload),
 				MLSHash:         hashBytes(mlsRes.Payload),
 				AVMHash:         hashBytes(avmRes.Payload),
@@ -233,22 +233,26 @@ func handlePropertyBytes(end string, h http.Header, l *slog.Logger, p *dbgen.Pro
 			return fmt.Errorf("null result extracting state")
 		}
 
-		// parse listing price
-		lp, err := jmesParseMLSParams("price", jmesMLS)
+		// parse image urls
+		uis, err := jmesParseMLSParams("image_urls", jmesMLS)
 		if err != nil {
-			return fmt.Errorf("error extracting list price: %w", err)
+			return fmt.Errorf("error extracting image urls: %w", err)
 		}
-		if lp == nil {
-			return fmt.Errorf("null result extracting list price")
+		urls, ok := uis.([]string)
+		if !ok {
+			fmt.Printf("type: %T\ndata: %s", uis, uis)
+			return fmt.Errorf("could not type assert image urls")
 		}
+
 		// upload
 		np := dbgen.PutPropertyParams{
-			PropertyID: p.PropertyID,
-			ListingID:  p.ListingID,
-			URL:        p.URL,
-			Zipcode:    pgtype.Text{String: zipcode.(string), Valid: true},
-			City:       pgtype.Text{String: city.(string), Valid: true},
-			State:      pgtype.Text{String: state.(string), Valid: true},
+			PropertyID:         p.PropertyID,
+			ListingID:          p.ListingID,
+			URL:                p.URL,
+			Zipcode:            pgtype.Text{String: zipcode.(string), Valid: true},
+			City:               pgtype.Text{String: city.(string), Valid: true},
+			State:              pgtype.Text{String: state.(string), Valid: true},
+			LastScrapeMetadata: jsonb.PropertyScrapeMetadata{ImageURLs: urls},
 		}
 		b, err := json.Marshal(np)
 		if err != nil {
@@ -366,13 +370,13 @@ func handlePropertyBytes(end string, h http.Header, l *slog.Logger, p *dbgen.Pro
 	}
 
 	// now (maybe) do S3 uploads to the cloud object store
-	if err := maybeS3Upload(iib, p.LastScrapeChecksums.InitialInfoHash, "initial_info.json"); err != nil {
+	if err := maybeS3Upload(iib, p.LastScrapeMetadata.InitialInfoHash, "initial_info.json"); err != nil {
 		return fmt.Errorf("error uploading InitialInfo bytes: %w", err)
 	}
-	if err := maybeS3Upload(mlsb, p.LastScrapeChecksums.MLSHash, "mls_info.json"); err != nil {
+	if err := maybeS3Upload(mlsb, p.LastScrapeMetadata.MLSHash, "mls_info.json"); err != nil {
 		return fmt.Errorf("error uploading MLSInfo bytes: %w", err)
 	}
-	if err := maybeS3Upload(avmb, p.LastScrapeChecksums.AVMHash, "avm_info.json"); err != nil {
+	if err := maybeS3Upload(avmb, p.LastScrapeMetadata.AVMHash, "avm_info.json"); err != nil {
 		return fmt.Errorf("error uploading AVMInfo bytes: %w", err)
 	}
 	return nil

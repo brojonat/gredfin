@@ -1,5 +1,13 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 
+CREATE TABLE search (
+  search_id SERIAL PRIMARY KEY,
+  query VARCHAR(128),
+  last_scrape_ts TIMESTAMP NOT NULL DEFAULT '19700101 00:00:00'::TIMESTAMP,
+  last_scrape_status VARCHAR(16) NOT NULL DEFAULT 'good',
+  UNIQUE (query)
+);
+
 CREATE TABLE property (
   property_id INT,
   listing_id INT,
@@ -12,14 +20,6 @@ CREATE TABLE property (
   last_scrape_status VARCHAR(16) DEFAULT 'good',
   last_scrape_metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
   PRIMARY KEY (property_id, listing_id)
-);
-
-CREATE TABLE search (
-  search_id SERIAL PRIMARY KEY,
-  query VARCHAR(128),
-  last_scrape_ts TIMESTAMP NOT NULL DEFAULT '19700101 00:00:00'::TIMESTAMP,
-  last_scrape_status VARCHAR(16) NOT NULL DEFAULT 'good',
-  UNIQUE (query)
 );
 
 CREATE TABLE realtor (

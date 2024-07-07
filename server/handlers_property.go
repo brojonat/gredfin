@@ -184,16 +184,16 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 		// if the supplied value is not equal to the zero value. This makes it hard
 		// to set the actual value to the zero value on this route, but I don't care.
 		pd := dbgen.PutPropertyParams{
-			PropertyID:          current.PropertyID,
-			ListingID:           current.ListingID,
-			URL:                 current.URL,
-			Zipcode:             current.Zipcode,
-			City:                current.City,
-			State:               current.State,
-			Location:            current.Location,
-			LastScrapeTS:        pgtype.Timestamp{Time: time.Now(), Valid: true},
-			LastScrapeStatus:    current.LastScrapeStatus,
-			LastScrapeChecksums: current.LastScrapeChecksums,
+			PropertyID:         current.PropertyID,
+			ListingID:          current.ListingID,
+			URL:                current.URL,
+			Zipcode:            current.Zipcode,
+			City:               current.City,
+			State:              current.State,
+			Location:           current.Location,
+			LastScrapeTS:       pgtype.Timestamp{Time: time.Now(), Valid: true},
+			LastScrapeStatus:   current.LastScrapeStatus,
+			LastScrapeMetadata: current.LastScrapeMetadata,
 		}
 		if updateData.URL.String != "" {
 			pd.URL = updateData.URL
@@ -216,14 +216,17 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 		if updateData.LastScrapeStatus.String != "" {
 			pd.LastScrapeStatus = updateData.LastScrapeStatus
 		}
-		if updateData.LastScrapeChecksums.InitialInfoHash != "" {
-			pd.LastScrapeChecksums.InitialInfoHash = updateData.LastScrapeChecksums.InitialInfoHash
+		if updateData.LastScrapeMetadata.InitialInfoHash != "" {
+			pd.LastScrapeMetadata.InitialInfoHash = updateData.LastScrapeMetadata.InitialInfoHash
 		}
-		if updateData.LastScrapeChecksums.MLSHash != "" {
-			pd.LastScrapeChecksums.MLSHash = updateData.LastScrapeChecksums.MLSHash
+		if updateData.LastScrapeMetadata.MLSHash != "" {
+			pd.LastScrapeMetadata.MLSHash = updateData.LastScrapeMetadata.MLSHash
 		}
-		if updateData.LastScrapeChecksums.AVMHash != "" {
-			pd.LastScrapeChecksums.AVMHash = updateData.LastScrapeChecksums.AVMHash
+		if updateData.LastScrapeMetadata.AVMHash != "" {
+			pd.LastScrapeMetadata.AVMHash = updateData.LastScrapeMetadata.AVMHash
+		}
+		if updateData.LastScrapeMetadata.ImageURLs != nil {
+			pd.LastScrapeMetadata.ImageURLs = updateData.LastScrapeMetadata.ImageURLs
 		}
 		err = q.PutProperty(r.Context(), pd)
 		if err != nil {

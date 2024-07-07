@@ -122,6 +122,20 @@ func jmesParseMLSParams(p string, data interface{}) (interface{}, error) {
 			events = append(events, pe)
 		}
 		return events, nil
+	case "image_urls":
+		res, err := jmespath.Search("propertyHistoryInfo.mediaBrowserInfoBySourceId.*.photos[].thumbnailData.thumbnailUrl", data)
+		if err != nil {
+			return nil, err
+		}
+		ress, ok := res.([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("could not handle jmes return type")
+		}
+		urls := []string{}
+		for _, rv := range ress {
+			urls = append(urls, rv.(string))
+		}
+		return urls, nil
 	default:
 		return nil, fmt.Errorf("unsupported param: %s", p)
 	}
