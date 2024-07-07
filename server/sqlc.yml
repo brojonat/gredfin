@@ -10,7 +10,7 @@ sql:
     gen:
       go:
         package: "dbgen"
-        out: "dbgen"
+        out: "db/dbgen"
         sql_package: "pgx/v5"
         emit_json_tags: true
         rename:
@@ -43,7 +43,7 @@ sql:
             go_type: "int32"
           - column: "property.last_scrape_metadata"
             go_type:
-              import: "github.com/brojonat/gredfin/server/dbgen/jsonb"
+              import: "github.com/brojonat/gredfin/server/db/jsonb"
               package: "jsonb"
               type: "PropertyScrapeMetadata"
           - column: "property.price"
@@ -76,6 +76,6 @@ sql:
             go_type: "int32"
           - column: "property_price.last_scrape_metadata"
             go_type:
-              import: "github.com/brojonat/gredfin/server/dbgen/jsonb"
+              import: "github.com/brojonat/gredfin/server/db/jsonb"
               package: "jsonb"
               type: "PropertyScrapeMetadata"

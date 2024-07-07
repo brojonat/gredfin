@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brojonat/gredfin/server/dbgen"
+	"github.com/brojonat/gredfin/server/db/dbgen"
 )
 
 func getPropertyBucket() (string, error) {

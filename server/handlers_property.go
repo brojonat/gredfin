@@ -12,7 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/brojonat/gredfin/server/dbgen"
+	"github.com/brojonat/gredfin/server/db/dbgen"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -227,6 +227,9 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 		}
 		if updateData.LastScrapeMetadata.ImageURLs != nil {
 			pd.LastScrapeMetadata.ImageURLs = updateData.LastScrapeMetadata.ImageURLs
+		}
+		if updateData.LastScrapeMetadata.ThumbnailURLs != nil {
+			pd.LastScrapeMetadata.ThumbnailURLs = updateData.LastScrapeMetadata.ThumbnailURLs
 		}
 		err = q.PutProperty(r.Context(), pd)
 		if err != nil {

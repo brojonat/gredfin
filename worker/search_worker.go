@@ -15,7 +15,7 @@ import (
 
 	"github.com/brojonat/gredfin/redfin"
 	"github.com/brojonat/gredfin/server"
-	"github.com/brojonat/gredfin/server/dbgen"
+	"github.com/brojonat/gredfin/server/db/dbgen"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/twpayne/go-geos"
 	"github.com/twpayne/go-geos/geometry"

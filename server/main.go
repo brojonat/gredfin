@@ -8,7 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/brojonat/gredfin/redfin"
-	"github.com/brojonat/gredfin/server/dbgen"
+	"github.com/brojonat/gredfin/server/db/dbgen"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

@@ -123,21 +123,43 @@ func jmesParseMLSParams(p string, data interface{}) (interface{}, error) {
 		}
 		return events, nil
 	case "image_urls":
-		res, err := jmespath.Search("propertyHistoryInfo.mediaBrowserInfoBySourceId.*.photos[].thumbnailData.thumbnailUrl", data)
+		iface, err := jmespath.Search("propertyHistoryInfo.mediaBrowserInfoBySourceId.*.photos[].photoUrls.nonFullScreenPhotoUrlCompressed", data)
 		if err != nil {
 			return nil, err
 		}
-		ress, ok := res.([]interface{})
+		ifaces, ok := iface.([]interface{})
 		if !ok {
-			return nil, fmt.Errorf("could not handle jmes return type")
+			return nil, fmt.Errorf("could not handle jmes return type for image_urls")
 		}
 		urls := []string{}
-		for _, rv := range ress {
-			urls = append(urls, rv.(string))
+		for _, rv := range ifaces {
+			url, ok := rv.(string)
+			if !ok {
+				return nil, fmt.Errorf("could not handle jmes return type for image_urls element")
+			}
+			urls = append(urls, url)
+		}
+		return urls, nil
+	case "thumbnail_urls":
+		iface, err := jmespath.Search("propertyHistoryInfo.mediaBrowserInfoBySourceId.*.photos[].thumbnailData.thumbnailUrl", data)
+		if err != nil {
+			return nil, err
+		}
+		ifaces, ok := iface.([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("could not handle jmes return type for thumbnail_urls")
+		}
+		urls := []string{}
+		for _, rv := range ifaces {
+			url, ok := rv.(string)
+			if !ok {
+				return nil, fmt.Errorf("could not handle jmes return type for thumbnail_urls element")
+			}
+			urls = append(urls, url)
 		}
 		return urls, nil
 	default:
-		return nil, fmt.Errorf("unsupported param: %s", p)
+		return nil, fmt.Errorf("unsupported field: %s", p)
 	}
 }
 

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/brojonat/gredfin/server/dbgen"
+	"github.com/brojonat/gredfin/server/db/dbgen"
 	"github.com/jackc/pgx/v5"
 )
 

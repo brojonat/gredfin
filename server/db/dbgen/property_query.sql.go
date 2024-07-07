@@ -8,7 +8,7 @@ package dbgen
 import (
 	"context"
 
-	jsonb "github.com/brojonat/gredfin/server/dbgen/jsonb"
+	jsonb "github.com/brojonat/gredfin/server/db/jsonb"
 	"github.com/jackc/pgx/v5/pgtype"
 	geometry "github.com/twpayne/go-geos/geometry"
 )

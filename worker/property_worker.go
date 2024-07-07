@@ -15,8 +15,8 @@ import (
 
 	"github.com/brojonat/gredfin/redfin"
 	"github.com/brojonat/gredfin/server"
-	"github.com/brojonat/gredfin/server/dbgen"
-	"github.com/brojonat/gredfin/server/dbgen/jsonb"
+	"github.com/brojonat/gredfin/server/db/dbgen"
+	"github.com/brojonat/gredfin/server/db/jsonb"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -233,14 +233,23 @@ func handlePropertyBytes(end string, h http.Header, l *slog.Logger, p *dbgen.Pro
 			return fmt.Errorf("null result extracting state")
 		}
 
+		// parse thumbnail urls
+		uis, err := jmesParseMLSParams("thumbnail_urls", jmesMLS)
+		if err != nil {
+			return fmt.Errorf("error extracting thumbnail urls: %w", err)
+		}
+		turls, ok := uis.([]string)
+		if !ok {
+			return fmt.Errorf("could not type assert thumbnail urls")
+		}
+
 		// parse image urls
-		uis, err := jmesParseMLSParams("image_urls", jmesMLS)
+		uis, err = jmesParseMLSParams("image_urls", jmesMLS)
 		if err != nil {
 			return fmt.Errorf("error extracting image urls: %w", err)
 		}
 		urls, ok := uis.([]string)
 		if !ok {
-			fmt.Printf("type: %T\ndata: %s", uis, uis)
 			return fmt.Errorf("could not type assert image urls")
 		}
 
@@ -252,7 +261,7 @@ func handlePropertyBytes(end string, h http.Header, l *slog.Logger, p *dbgen.Pro
 			Zipcode:            pgtype.Text{String: zipcode.(string), Valid: true},
 			City:               pgtype.Text{String: city.(string), Valid: true},
 			State:              pgtype.Text{String: state.(string), Valid: true},
-			LastScrapeMetadata: jsonb.PropertyScrapeMetadata{ImageURLs: urls},
+			LastScrapeMetadata: jsonb.PropertyScrapeMetadata{ThumbnailURLs: turls, ImageURLs: urls},
 		}
 		b, err := json.Marshal(np)
 		if err != nil {
