@@ -101,12 +101,9 @@ func handleRealtorPost(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.H
 		realtor, err := q.GetRealtor(r.Context(), dbgen.GetRealtorParams{Name: data.Name, Company: data.Company})
 		if err == pgx.ErrNoRows {
 			err = q.CreateRealtor(r.Context(), dbgen.CreateRealtorParams{Name: data.Name, Company: data.Company})
-			if err != nil {
-				if !isPGError(err, pgErrorUniqueViolation) {
-					writeInternalError(l, w, err)
-					return
-				}
-				l.Debug("duplicate key for realtor", "name", data.Name, "company", data.Company)
+			if err != nil && !isPGError(err, pgErrorUniqueViolation) {
+				writeInternalError(l, w, err)
+				return
 			}
 		}
 		realtor, err = q.GetRealtor(r.Context(), dbgen.GetRealtorParams{Name: data.Name, Company: data.Company})
@@ -117,12 +114,9 @@ func handleRealtorPost(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.H
 
 		err = q.CreateRealtorPropertyListing(r.Context(), dbgen.CreateRealtorPropertyListingParams{
 			RealtorID: realtor.RealtorID, PropertyID: data.PropertyID, ListingID: data.ListingID})
-		if err != nil {
-			if !isPGError(err, pgErrorUniqueViolation) {
-				writeInternalError(l, w, err)
-				return
-			}
-			l.Debug("duplicate key for realtor property listing", "name", data.Name, "company", data.Company, "property_id", data.PropertyID, "listing_id", data.ListingID)
+		if err != nil && !isPGError(err, pgErrorUniqueViolation) {
+			writeInternalError(l, w, err)
+			return
 		}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})

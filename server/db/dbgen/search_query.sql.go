@@ -8,6 +8,7 @@ package dbgen
 import (
 	"context"
 
+	jsonb "github.com/brojonat/gredfin/server/db/jsonb"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -45,7 +46,7 @@ func (q *Queries) DeleteSearchByQuery(ctx context.Context, query pgtype.Text) er
 }
 
 const getNNextSearchScrapeForUpdate = `-- name: GetNNextSearchScrapeForUpdate :one
-SELECT search_id, query, last_scrape_ts, last_scrape_status FROM search
+SELECT search_id, query, last_scrape_ts, last_scrape_status, last_scrape_metadata FROM search
 WHERE last_scrape_status = ANY($1::VARCHAR[])
 ORDER BY NOW()::timestamp - last_scrape_ts DESC
 LIMIT $2
@@ -68,12 +69,13 @@ func (q *Queries) GetNNextSearchScrapeForUpdate(ctx context.Context, arg GetNNex
 		&i.Query,
 		&i.LastScrapeTS,
 		&i.LastScrapeStatus,
+		&i.LastScrapeMetadata,
 	)
 	return i, err
 }
 
 const getSearch = `-- name: GetSearch :one
-SELECT search_id, query, last_scrape_ts, last_scrape_status FROM search
+SELECT search_id, query, last_scrape_ts, last_scrape_status, last_scrape_metadata FROM search
 WHERE search_id = $1 LIMIT 1
 `
 
@@ -85,12 +87,13 @@ func (q *Queries) GetSearch(ctx context.Context, searchID int32) (Search, error)
 		&i.Query,
 		&i.LastScrapeTS,
 		&i.LastScrapeStatus,
+		&i.LastScrapeMetadata,
 	)
 	return i, err
 }
 
 const getSearchByQuery = `-- name: GetSearchByQuery :one
-SELECT search_id, query, last_scrape_ts, last_scrape_status FROM search
+SELECT search_id, query, last_scrape_ts, last_scrape_status, last_scrape_metadata FROM search
 WHERE query = $1
 `
 
@@ -102,12 +105,13 @@ func (q *Queries) GetSearchByQuery(ctx context.Context, query pgtype.Text) (Sear
 		&i.Query,
 		&i.LastScrapeTS,
 		&i.LastScrapeStatus,
+		&i.LastScrapeMetadata,
 	)
 	return i, err
 }
 
 const listSearches = `-- name: ListSearches :many
-SELECT search_id, query, last_scrape_ts, last_scrape_status FROM search
+SELECT search_id, query, last_scrape_ts, last_scrape_status, last_scrape_metadata FROM search
 ORDER BY search_id
 `
 
@@ -125,6 +129,7 @@ func (q *Queries) ListSearches(ctx context.Context) ([]Search, error) {
 			&i.Query,
 			&i.LastScrapeTS,
 			&i.LastScrapeStatus,
+			&i.LastScrapeMetadata,
 		); err != nil {
 			return nil, err
 		}
@@ -140,15 +145,17 @@ const postSearch = `-- name: PostSearch :exec
 UPDATE search
   SET query = $2,
   last_scrape_ts = $3,
-  last_scrape_status = $4
+  last_scrape_status = $4,
+  last_scrape_metadata = $5
 WHERE search_id = $1
 `
 
 type PostSearchParams struct {
-	SearchID         int32            `json:"search_id"`
-	Query            pgtype.Text      `json:"query"`
-	LastScrapeTS     pgtype.Timestamp `json:"last_scrape_ts"`
-	LastScrapeStatus string           `json:"last_scrape_status"`
+	SearchID           int32                       `json:"search_id"`
+	Query              pgtype.Text                 `json:"query"`
+	LastScrapeTS       pgtype.Timestamp            `json:"last_scrape_ts"`
+	LastScrapeStatus   string                      `json:"last_scrape_status"`
+	LastScrapeMetadata *jsonb.SearchScrapeMetadata `json:"last_scrape_metadata"`
 }
 
 func (q *Queries) PostSearch(ctx context.Context, arg PostSearchParams) error {
@@ -157,6 +164,7 @@ func (q *Queries) PostSearch(ctx context.Context, arg PostSearchParams) error {
 		arg.Query,
 		arg.LastScrapeTS,
 		arg.LastScrapeStatus,
+		arg.LastScrapeMetadata,
 	)
 	return err
 }
@@ -164,16 +172,18 @@ func (q *Queries) PostSearch(ctx context.Context, arg PostSearchParams) error {
 const updateSearchStatus = `-- name: UpdateSearchStatus :exec
 UPDATE search
   SET last_scrape_ts = NOW()::timestamp,
-  last_scrape_status = $2
-WHERE search_id = $1
+  last_scrape_status = $1,
+  last_scrape_metadata = COALESCE($2, last_scrape_metadata)
+WHERE search_id = $3
 `
 
 type UpdateSearchStatusParams struct {
-	SearchID         int32  `json:"search_id"`
-	LastScrapeStatus string `json:"last_scrape_status"`
+	LastScrapeStatus   string                      `json:"last_scrape_status"`
+	LastScrapeMetadata *jsonb.SearchScrapeMetadata `json:"last_scrape_metadata"`
+	SearchID           int32                       `json:"search_id"`
 }
 
 func (q *Queries) UpdateSearchStatus(ctx context.Context, arg UpdateSearchStatusParams) error {
-	_, err := q.db.Exec(ctx, updateSearchStatus, arg.SearchID, arg.LastScrapeStatus)
+	_, err := q.db.Exec(ctx, updateSearchStatus, arg.LastScrapeStatus, arg.LastScrapeMetadata, arg.SearchID)
 	return err
 }

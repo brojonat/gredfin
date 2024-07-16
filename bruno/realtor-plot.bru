@@ -5,7 +5,16 @@ meta {
 }
 
 get {
-  url: {{ENDPOINT}}/realtor-plot
+  url: {{ENDPOINT}}/realtor-plot?name=Justyna Korczynski&company=TNHC Realty and Construction (949-688-6929)
   body: none
   auth: none
+}
+
+query {
+  name: Justyna Korczynski
+  company: TNHC Realty and Construction (949-688-6929)
+}
+
+headers {
+  Authorization: Bearer {{AUTH_TOKEN}}
 }

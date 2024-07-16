@@ -31,14 +31,16 @@ INSERT INTO search (
 UPDATE search
   SET query = $2,
   last_scrape_ts = $3,
-  last_scrape_status = $4
+  last_scrape_status = $4,
+  last_scrape_metadata = $5
 WHERE search_id = $1;
 
 -- name: UpdateSearchStatus :exec
 UPDATE search
   SET last_scrape_ts = NOW()::timestamp,
-  last_scrape_status = $2
-WHERE search_id = $1;
+  last_scrape_status = @last_scrape_status,
+  last_scrape_metadata = COALESCE(sqlc.narg('last_scrape_metadata'), last_scrape_metadata)
+WHERE search_id = @search_id;
 
 -- name: DeleteSearch :exec
 DELETE FROM search

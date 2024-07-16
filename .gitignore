@@ -10,4 +10,6 @@ cli
 # data dumps
 test-data/
 
+bootstrap/
+
 todo.txt

@@ -67,11 +67,18 @@ func MakeSearchWorkerFunc(
 		}
 		l.Info("search results uploaded", "error", errCount, "success", successCount)
 
+		// If any properties are uploaded successfully, we consider that a
+		// "good" scrape since there may be problematic properties returned that
+		// we don't expect to be able to parse. A "bad" scrape is one that had
+		// URLs returned and didn't successfully upload any properties to the
+		// server. This may result in some scrapes getting marked bad when in
+		// reality, by chance, they happen to not have any parseable properties,
+		// but it's good to identify those searches anyway.
 		status := server.ScrapeStatusGood
-		if successCount == 0 {
+		if len(urls) > 0 && successCount == 0 {
 			status = server.ScrapeStatusBad
 		}
-		if err = markSearchStatus(endpoint, server.GetDefaultServerHeaders(authToken), s, status); err != nil {
+		if err = markSearchStatus(endpoint, server.GetDefaultServerHeaders(authToken), s, status, successCount); err != nil {
 			l.Error(err.Error())
 			return
 		}
@@ -113,7 +120,7 @@ func claimSearch(endpoint string, h http.Header) (*dbgen.Search, error) {
 	return &s, nil
 }
 
-func markSearchStatus(endpoint string, h http.Header, s *dbgen.Search, status string) error {
+func markSearchStatus(endpoint string, h http.Header, s *dbgen.Search, status string, count int) error {
 	req, err := http.NewRequest(
 		http.MethodPost,
 		fmt.Sprintf("%s/search-query/set-status", endpoint),
@@ -125,6 +132,7 @@ func markSearchStatus(endpoint string, h http.Header, s *dbgen.Search, status st
 	q := req.URL.Query()
 	q.Add("search_id", strconv.Itoa(int(s.SearchID)))
 	q.Add("status", status)
+	q.Add("property_count", strconv.Itoa(count))
 	req.URL.RawQuery = q.Encode()
 	req.Header = h
 	res, err := http.DefaultClient.Do(req)

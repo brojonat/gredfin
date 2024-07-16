@@ -125,12 +125,9 @@ func handlePropertyPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 
 		// create the property, ignore "already exists" error
 		err = q.CreateProperty(r.Context(), p)
-		if err != nil {
-			if !isPGError(err, pgErrorUniqueViolation) {
-				writeInternalError(l, w, err)
-				return
-			}
-			l.Debug("duplicate key for property", "property_id", p.PropertyID, "listing_id", p.ListingID, "url", p.URL)
+		if err != nil && !isPGError(err, pgErrorUniqueViolation) {
+			writeInternalError(l, w, err)
+			return
 		}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})

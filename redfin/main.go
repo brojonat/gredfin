@@ -51,19 +51,20 @@ type Client interface {
 }
 
 type client struct {
+	hc        *http.Client
 	baseURL   string
 	userAgent string
 }
 
-func NewClient(baseURL, userAgent string) Client {
-	return &client{baseURL: baseURL, userAgent: userAgent}
+func NewClient(baseURL, userAgent string, hc *http.Client) Client {
+	return &client{baseURL: baseURL, userAgent: userAgent, hc: hc}
 }
 
 func (c *client) doPropertyRequest(path string, params map[string]string, page bool) ([]byte, error) {
 	if page {
 		params["pageType"] = "3"
 	}
-	params["accessLevel"] = "1"
+	params["accessLevel"] = "1" // FIXME: is this desirable?
 	return c.doRequest("api/home/details/"+path, params)
 }
 
@@ -78,7 +79,7 @@ func (c *client) doRequest(url string, params map[string]string) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	res, err := http.DefaultClient.Do(req)
+	res, err := c.hc.Do(req)
 	if err != nil {
 		return nil, err
 	}

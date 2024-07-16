@@ -20,6 +20,7 @@ sql:
           created_ts: "CreatedTS"
           source_id: "SourceID"
         overrides:
+
           ## db type overrides
           - db_type: "geometry"
             go_type:
@@ -28,6 +29,15 @@ sql:
               type: "Geometry"
               pointer: true
             null: true
+
+          # search table overrides
+          - column: "search.last_scrape_metadata"
+            go_type:
+              import: "github.com/brojonat/gredfin/server/db/jsonb"
+              package: "jsonb"
+              type: "SearchScrapeMetadata"
+              pointer: true
+
           # realtor table overrides
           - column: "realtor.realtor_id"
             go_type: "int32"

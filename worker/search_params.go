@@ -11,7 +11,7 @@ const (
 // values are set for demo/testing purposes and correspond to Columbus, OH.
 func GetDefaultGISCSVParams() map[string]string {
 	params := map[string]string{}
-	params["al"] = "1"
+	params["al"] = "3"
 	params["has_att_fiber"] = "false"
 	params["has_deal"] = "false"
 	params["has_dishwasher"] = "false"

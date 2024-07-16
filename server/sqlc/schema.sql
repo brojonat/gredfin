@@ -5,6 +5,7 @@ CREATE TABLE search (
   query VARCHAR(128),
   last_scrape_ts TIMESTAMP NOT NULL DEFAULT '19700101 00:00:00'::TIMESTAMP,
   last_scrape_status VARCHAR(16) NOT NULL DEFAULT 'good',
+  last_scrape_metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
   UNIQUE (query)
 );
 

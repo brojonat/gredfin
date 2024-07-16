@@ -77,8 +77,9 @@ type RealtorPropertyThrough struct {
 }
 
 type Search struct {
-	SearchID         int32            `json:"search_id"`
-	Query            pgtype.Text      `json:"query"`
-	LastScrapeTS     pgtype.Timestamp `json:"last_scrape_ts"`
-	LastScrapeStatus string           `json:"last_scrape_status"`
+	SearchID           int32                       `json:"search_id"`
+	Query              pgtype.Text                 `json:"query"`
+	LastScrapeTS       pgtype.Timestamp            `json:"last_scrape_ts"`
+	LastScrapeStatus   string                      `json:"last_scrape_status"`
+	LastScrapeMetadata *jsonb.SearchScrapeMetadata `json:"last_scrape_metadata"`
 }

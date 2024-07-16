@@ -16,6 +16,23 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+func getDefaultLogger(lvl slog.Level) *slog.Logger {
+	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     lvl,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.SourceKey {
+				source, _ := a.Value.Any().(*slog.Source)
+				if source != nil {
+					source.Function = ""
+					source.File = filepath.Base(source.File)
+				}
+			}
+			return a
+		},
+	}))
+}
+
 func main() {
 	app := &cli.App{
 		Commands: []*cli.Command{
@@ -287,10 +304,10 @@ func main() {
 
 func serve_http(ctx *cli.Context) error {
 	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
-	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"))
+	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"), nil)
 	cfg, err := config.LoadDefaultConfig(ctx.Context)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	s3Client := s3.NewFromConfig(cfg)
 	return server.RunHTTPServer(
@@ -305,7 +322,11 @@ func serve_http(ctx *cli.Context) error {
 
 func run_search_worker(ctx *cli.Context) error {
 	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
-	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"))
+	hc, err := getDefaultHTTPClient()
+	if err != nil {
+		return err
+	}
+	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"), hc)
 	pqd, err := time.ParseDuration(ctx.String("property-query-delay"))
 	if err != nil {
 		log.Fatal(err)
@@ -326,7 +347,11 @@ func run_search_worker(ctx *cli.Context) error {
 
 func run_property_scrape_worker(ctx *cli.Context) error {
 	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
-	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"))
+	hc, err := getDefaultHTTPClient()
+	if err != nil {
+		return err
+	}
+	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"), hc)
 	worker.RunWorkerFunc(
 		ctx.Context,
 		logger,
@@ -351,9 +376,26 @@ func add_search_query(ctx *cli.Context) error {
 	)
 }
 
+func add_property_query(ctx *cli.Context) error {
+	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
+	return AddProperty(
+		ctx.Context,
+		logger,
+		ctx.String("server-endpoint"),
+		ctx.String("auth-token"),
+		ctx.String("property_id"),
+		ctx.String("listing_id"),
+		ctx.String("url"),
+	)
+}
+
 func test_search_query(ctx *cli.Context) error {
 	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
-	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"))
+	hc, err := getDefaultHTTPClient()
+	if err != nil {
+		return err
+	}
+	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"), hc)
 	sp := worker.GetDefaultSearchParams()
 	gissp := worker.GetDefaultGISCSVParams()
 	urls, err := worker.GetURLSFromQuery(
@@ -370,34 +412,4 @@ func test_search_query(ctx *cli.Context) error {
 		fmt.Printf("%s\n", u)
 	}
 	return nil
-}
-
-func add_property_query(ctx *cli.Context) error {
-	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
-	return AddProperty(
-		ctx.Context,
-		logger,
-		ctx.String("server-endpoint"),
-		ctx.String("auth-token"),
-		ctx.String("property_id"),
-		ctx.String("listing_id"),
-		ctx.String("url"),
-	)
-}
-
-func getDefaultLogger(lvl slog.Level) *slog.Logger {
-	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		AddSource: true,
-		Level:     lvl,
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			if a.Key == slog.SourceKey {
-				source, _ := a.Value.Any().(*slog.Source)
-				if source != nil {
-					source.Function = ""
-					source.File = filepath.Base(source.File)
-				}
-			}
-			return a
-		},
-	}))
 }

@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/brojonat/gredfin/server/db/dbgen"
+	"github.com/brojonat/gredfin/server/db/jsonb"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -85,8 +86,10 @@ func handleSearchPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			}
 			return
 		}
+
+		// create the search entry, ignore "already exists" error
 		err = q.CreateSearch(r.Context(), p)
-		if err != nil {
+		if err != nil && !isPGError(err, pgErrorUniqueViolation) {
 			writeInternalError(l, w, err)
 			return
 		}
@@ -158,6 +161,7 @@ func handleSearchClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) ht
 			writeInternalError(l, w, err)
 			return
 		}
+		// FIXME: verify that this doesn't overwrite the metadata to {}
 		err = q.UpdateSearchStatus(
 			r.Context(),
 			dbgen.UpdateSearchStatusParams{
@@ -178,10 +182,12 @@ func handleSearchSetStatus(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		search_id := r.URL.Query().Get("search_id")
 		status := r.URL.Query().Get("status")
+		success_count := r.URL.Query().Get("success_count")
+		error_count := r.URL.Query().Get("error_count")
 
 		if search_id == "" || status == "" || !isValidStatus(status) {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "must specify search_id and valid status"})
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "must specify search_id, valid status, and property_count"})
 			return
 		}
 
@@ -192,11 +198,25 @@ func handleSearchSetStatus(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			return
 		}
 
+		sc, err := strconv.Atoi(success_count)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad value for success_count"})
+			return
+		}
+		ec, err := strconv.Atoi(error_count)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad value for error_count"})
+			return
+		}
+
 		err = q.UpdateSearchStatus(
 			r.Context(),
 			dbgen.UpdateSearchStatusParams{
-				SearchID:         int32(sid),
-				LastScrapeStatus: status,
+				SearchID:           int32(sid),
+				LastScrapeStatus:   status,
+				LastScrapeMetadata: &jsonb.SearchScrapeMetadata{SuccessCount: sc, ErrorCount: ec},
 			},
 		)
 		if err != nil {
