@@ -40,7 +40,7 @@ UPDATE "search" SET last_scrape_metadata = '{}'::JSONB WHERE TRUE;
 UPDATE "search" SET last_scrape_ts = '1970-01-01 00:00:00.000'::TIMESTAMP WHERE TRUE;
 
 
-SELECT * FROM property ORDER BY property_id LIMIT 100;
+SELECT * FROM property ORDER BY property_id;
 DELETE FROM property;
 SELECT property_id , listing_id, zipcode, location::geometry AS location FROM property;
 DELETE FROM property WHERE zipcode IS NULL;
@@ -52,6 +52,13 @@ SELECT last_scrape_metadata -> 'image_urls' FROM property_price pp;
 
 SELECT '[1, 2, "foo", null]'::json;
 
+SELECT sum("Property Count") FROM (
+SELECT r.name, r.company, count(*) AS "Property Count" FROM realtor r 
+LEFT JOIN realtor_property_through rpt ON r.realtor_id = rpt.realtor_id 
+LEFT JOIN property_price pp ON rpt.property_id  = pp.property_id AND rpt.listing_id = pp.listing_id
+GROUP BY r.realtor_id, r.name, r.company
+ORDER BY "Property Count" DESC
+);
 
 
 
