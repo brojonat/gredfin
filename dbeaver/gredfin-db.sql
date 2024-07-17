@@ -27,10 +27,17 @@ INNER JOIN last_property_price_event pe ON
 	p.property_id = pe.property_id AND 
 	p.listing_id = pe.listing_id;
 
-SELECT * FROM "search";
-UPDATE search SET last_scrape_status = 'good' WHERE last_scrape_status != 'good';
-UPDATE search SET last_scrape_metadata = '{}'::JSONB WHERE TRUE;
-UPDATE search SET last_scrape_ts = '1970-01-01 00:00:00.000'::TIMESTAMP WHERE TRUE;
+SELECT SUM(m.value::NUMERIC) 
+FROM "search" AS s, jsonb_each(last_scrape_metadata) AS m
+WHERE m.key = 'success_count';
+
+SELECT * FROM SEARCH, jsonb_each(last_scrape_metadata);
+
+SELECT COUNT(*) FROM "search" WHERE last_scrape_metadata = '{}'::JSONB;
+
+UPDATE "search" SET last_scrape_status = 'good' WHERE last_scrape_status != 'good';
+UPDATE "search" SET last_scrape_metadata = '{}'::JSONB WHERE TRUE;
+UPDATE "search" SET last_scrape_ts = '1970-01-01 00:00:00.000'::TIMESTAMP WHERE TRUE;
 
 
 SELECT * FROM property ORDER BY property_id LIMIT 100;
