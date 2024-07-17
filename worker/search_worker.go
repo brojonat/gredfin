@@ -56,16 +56,16 @@ func MakeSearchWorkerFunc(
 
 		// for each URL, upload the property listing to the DB
 		h := server.GetDefaultServerHeaders(authToken)
-		errCount := 0
-		successCount := len(urls)
+		nerr := 0
+		nsuccess := len(urls)
 		for _, u := range urls {
 			if err := addPropertyFromURL(endpoint, h, grc, u, pqd); err != nil {
 				l.Error(err.Error())
-				errCount += 1
-				successCount -= 1
+				nerr += 1
+				nsuccess -= 1
 			}
 		}
-		l.Info("search results uploaded", "error", errCount, "success", successCount)
+		l.Info("search results uploaded", "error", nerr, "success", nsuccess)
 
 		// If any properties are uploaded successfully, we consider that a
 		// "good" scrape since there may be problematic properties returned that
@@ -75,10 +75,10 @@ func MakeSearchWorkerFunc(
 		// reality, by chance, they happen to not have any parseable properties,
 		// but it's good to identify those searches anyway.
 		status := server.ScrapeStatusGood
-		if len(urls) > 0 && successCount == 0 {
+		if len(urls) > 0 && nsuccess == 0 {
 			status = server.ScrapeStatusBad
 		}
-		if err = markSearchStatus(endpoint, server.GetDefaultServerHeaders(authToken), s, status, successCount); err != nil {
+		if err = markSearchStatus(endpoint, server.GetDefaultServerHeaders(authToken), s, status, nsuccess, nerr); err != nil {
 			l.Error(err.Error())
 			return
 		}
@@ -120,7 +120,7 @@ func claimSearch(endpoint string, h http.Header) (*dbgen.Search, error) {
 	return &s, nil
 }
 
-func markSearchStatus(endpoint string, h http.Header, s *dbgen.Search, status string, count int) error {
+func markSearchStatus(endpoint string, h http.Header, s *dbgen.Search, status string, success_count, error_count int) error {
 	req, err := http.NewRequest(
 		http.MethodPost,
 		fmt.Sprintf("%s/search-query/set-status", endpoint),
@@ -132,7 +132,8 @@ func markSearchStatus(endpoint string, h http.Header, s *dbgen.Search, status st
 	q := req.URL.Query()
 	q.Add("search_id", strconv.Itoa(int(s.SearchID)))
 	q.Add("status", status)
-	q.Add("property_count", strconv.Itoa(count))
+	q.Add("success_count", strconv.Itoa(success_count))
+	q.Add("error_count", strconv.Itoa(error_count))
 	req.URL.RawQuery = q.Encode()
 	req.Header = h
 	res, err := http.DefaultClient.Do(req)
@@ -140,8 +141,16 @@ func markSearchStatus(endpoint string, h http.Header, s *dbgen.Search, status st
 		return err
 	}
 	defer res.Body.Close()
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+	var data server.DefaultJSONResponse
+	if err = json.Unmarshal(b, &data); err != nil {
+		return err
+	}
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf(res.Status)
+		return fmt.Errorf("%s (%s)", res.Status, data.Error)
 	}
 	return nil
 }

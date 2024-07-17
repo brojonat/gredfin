@@ -134,7 +134,7 @@ func handlePropertyEventsPut(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) 
 		}
 		defer tx.Commit(r.Context())
 		q = q.WithTx(tx)
-		for pid, _ := range pids {
+		for pid := range pids {
 			err := q.DeletePropertyEventsByProperty(r.Context(), dbgen.DeletePropertyEventsByPropertyParams{PropertyID: pid})
 			if err != nil {
 				writeInternalError(l, w, err)
