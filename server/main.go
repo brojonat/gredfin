@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"firebase.google.com/go/auth"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/brojonat/gredfin/redfin"
 	"github.com/brojonat/gredfin/server/db/dbgen"
@@ -49,6 +50,7 @@ func RunHTTPServer(
 	dbHost string,
 	c redfin.Client,
 	s3 *s3.Client,
+	fbc *auth.Client,
 ) error {
 	db, err := getConnPool(ctx, dbHost)
 	if err != nil {
@@ -59,6 +61,6 @@ func RunHTTPServer(
 	l.Info(fmt.Sprintf("listening on %s...", port))
 	return http.ListenAndServe(
 		fmt.Sprintf(":%s", port),
-		getRootHandler(l, db, q, s3),
+		getRootHandler(l, db, q, s3, fbc),
 	)
 }

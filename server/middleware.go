@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"firebase.google.com/go/auth"
 	"github.com/golang-jwt/jwt"
 	"github.com/gorilla/handlers"
 )
@@ -87,14 +88,31 @@ func setMaxBytesReader(mb int64) handlerAdapter {
 	}
 }
 
-func mustAuth() handlerAdapter {
+func mustAuth(fbc *auth.Client) handlerAdapter {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
+			// check firebase JWT, if present, use that for auth, otherwise fall
+			// back to our custom bearer token
+			if r.Header.Get("Firebase-JWT") != "" {
+				_, err := fbc.VerifyIDToken(r.Context(), r.Header.Get("Firebase-JWT"))
+				if err != nil {
+					w.WriteHeader(http.StatusUnauthorized)
+					json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad firebase token"})
+					return
+				}
+				// Here we can retrieve the user's email and add  it to the
+				// token claims and set it on the request context, but at
+				// present this isn't necessary so it's not done.
+				next(w, r)
+				return
+			}
+
+			// no firebase token, look for and validate our custom JWT
 			var claims authJWTClaims
 			ts := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 			if ts == "" {
 				resp := DefaultJSONResponse{Error: "missing authorization header"}
-				w.WriteHeader(http.StatusBadRequest)
+				w.WriteHeader(http.StatusUnauthorized)
 				json.NewEncoder(w).Encode(resp)
 				return
 			}

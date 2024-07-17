@@ -26,7 +26,8 @@ INNER JOIN property_price p
 WHERE
   (POSITION(LOWER(@search) IN LOWER(r.name)) > 0) OR
   (POSITION(LOWER(@search) IN LOWER(r.company)) > 0)
-ORDER BY r.name;
+ORDER BY r.name
+LIMIT 100;
 
 -- name: CreateRealtor :exec
 INSERT INTO realtor (

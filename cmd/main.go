@@ -8,12 +8,14 @@ import (
 	"path/filepath"
 	"time"
 
+	firebase "firebase.google.com/go"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/brojonat/gredfin/redfin"
 	"github.com/brojonat/gredfin/server"
 	"github.com/brojonat/gredfin/worker"
 	"github.com/urfave/cli/v2"
+	"google.golang.org/api/option"
 )
 
 func getDefaultLogger(lvl slog.Level) *slog.Logger {
@@ -303,13 +305,27 @@ func main() {
 }
 
 func serve_http(ctx *cli.Context) error {
+	// internal init
 	logger := getDefaultLogger(slog.Level(ctx.Int("log-level")))
 	redfinClient := redfin.NewClient("https://www.redfin.com/stingray/", ctx.String("user-agent"), nil)
-	cfg, err := config.LoadDefaultConfig(ctx.Context)
+
+	// aws init
+	awsCFG, err := config.LoadDefaultConfig(ctx.Context)
 	if err != nil {
 		return err
 	}
-	s3Client := s3.NewFromConfig(cfg)
+	s3Client := s3.NewFromConfig(awsCFG)
+
+	// firebase init (options are nil, so it pulls the config from os.Getenv("FIREBASE_CONFIG"))
+	fbapp, err := firebase.NewApp(ctx.Context, nil, option.WithCredentialsJSON([]byte(os.Getenv("FIREBASE_CONFIG"))))
+	if err != nil {
+		return fmt.Errorf("error initializing firebase: %w", err)
+	}
+	fbc, err := fbapp.Auth(ctx.Context)
+	if err != nil {
+		return fmt.Errorf("error initializing firebase auth client: %w", err)
+	}
+
 	return server.RunHTTPServer(
 		ctx.Context,
 		ctx.String("listen-port"),
@@ -317,6 +333,7 @@ func serve_http(ctx *cli.Context) error {
 		ctx.String("db-host"),
 		redfinClient,
 		s3Client,
+		fbc,
 	)
 }
 
