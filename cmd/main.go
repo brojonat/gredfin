@@ -316,7 +316,7 @@ func serve_http(ctx *cli.Context) error {
 	}
 	s3Client := s3.NewFromConfig(awsCFG)
 
-	// firebase init (options are nil, so it pulls the config from os.Getenv("FIREBASE_CONFIG"))
+	// firebase init
 	fbapp, err := firebase.NewApp(ctx.Context, nil, option.WithCredentialsJSON([]byte(os.Getenv("FIREBASE_CONFIG"))))
 	if err != nil {
 		return fmt.Errorf("error initializing firebase: %w", err)

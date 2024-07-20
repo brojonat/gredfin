@@ -31,7 +31,7 @@ SELECT SUM(m.value::NUMERIC)
 FROM "search" AS s, jsonb_each(last_scrape_metadata) AS m
 WHERE m.key = 'success_count';
 
-SELECT * FROM SEARCH, jsonb_each(last_scrape_metadata);
+SELECT * FROM "search" s;
 
 SELECT COUNT(*) FROM "search" WHERE last_scrape_metadata = '{}'::JSONB;
 

@@ -172,6 +172,71 @@ func (q *Queries) GetRealtorProperties(ctx context.Context, arg GetRealtorProper
 }
 
 const searchRealtorProperties = `-- name: SearchRealtorProperties :many
+SELECT name, company, property_count, avg_price, median_price, zipcodes
+FROM (
+	SELECT
+		rp.name, rp.company,
+		COUNT(*)::INT AS "property_count",
+		AVG(rp.price)::INT AS "avg_price",
+		PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY rp.price)::INT AS "median_price",
+		STRING_AGG(DISTINCT rp.zipcode, ',')::TEXT AS "zipcodes"
+	FROM (
+		SELECT pp.property_id, pp.listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata, rpt.realtor_id, rpt.property_id, rpt.listing_id, r.realtor_id, name, company
+		FROM property_price pp
+		LEFT JOIN realtor_property_through rpt ON pp.property_id = rpt.property_id AND pp.listing_id = rpt.listing_id
+		LEFT JOIN realtor r ON rpt.realtor_id = r.realtor_id
+		WHERE r.name IS NOT NULL AND r.company IS NOT NULL AND pp.zipcode IS NOT NULL
+	) rp
+	GROUP BY rp.name, rp.company
+) AS rs
+WHERE
+  (POSITION(LOWER($1) IN LOWER(rs.name)) > 0) OR
+  (POSITION(LOWER($1) IN LOWER(rs.company)) > 0) OR
+  (POSITION($1 IN rs.zipcodes) > 0)
+ORDER BY rs.property_count DESC
+LIMIT 100
+`
+
+type SearchRealtorPropertiesRow struct {
+	Name          string `json:"name"`
+	Company       string `json:"company"`
+	PropertyCount int32  `json:"property_count"`
+	AvgPrice      int32  `json:"avg_price"`
+	MedianPrice   int32  `json:"median_price"`
+	Zipcodes      string `json:"zipcodes"`
+}
+
+// List realtors with some useful aggregate data. This is like the "realtor
+// stats" handler. This lets us do more aggregation on the backend and reduce
+// bandwidth.
+func (q *Queries) SearchRealtorProperties(ctx context.Context, search string) ([]SearchRealtorPropertiesRow, error) {
+	rows, err := q.db.Query(ctx, searchRealtorProperties, search)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchRealtorPropertiesRow
+	for rows.Next() {
+		var i SearchRealtorPropertiesRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.Company,
+			&i.PropertyCount,
+			&i.AvgPrice,
+			&i.MedianPrice,
+			&i.Zipcodes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchRealtorPropertiesLegacyREMOVEME = `-- name: SearchRealtorPropertiesLegacyREMOVEME :many
 SELECT r.realtor_id, name, company, rp.realtor_id, rp.property_id, rp.listing_id, p.property_id, p.listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata
 FROM realtor r
 INNER JOIN realtor_property_through rp
@@ -185,7 +250,7 @@ ORDER BY r.name
 LIMIT 100
 `
 
-type SearchRealtorPropertiesRow struct {
+type SearchRealtorPropertiesLegacyREMOVEMERow struct {
 	RealtorID          int32                        `json:"realtor_id"`
 	Name               string                       `json:"name"`
 	Company            string                       `json:"company"`
@@ -205,15 +270,15 @@ type SearchRealtorPropertiesRow struct {
 	LastScrapeMetadata jsonb.PropertyScrapeMetadata `json:"last_scrape_metadata"`
 }
 
-func (q *Queries) SearchRealtorProperties(ctx context.Context, search string) ([]SearchRealtorPropertiesRow, error) {
-	rows, err := q.db.Query(ctx, searchRealtorProperties, search)
+func (q *Queries) SearchRealtorPropertiesLegacyREMOVEME(ctx context.Context, search string) ([]SearchRealtorPropertiesLegacyREMOVEMERow, error) {
+	rows, err := q.db.Query(ctx, searchRealtorPropertiesLegacyREMOVEME, search)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []SearchRealtorPropertiesRow
+	var items []SearchRealtorPropertiesLegacyREMOVEMERow
 	for rows.Next() {
-		var i SearchRealtorPropertiesRow
+		var i SearchRealtorPropertiesLegacyREMOVEMERow
 		if err := rows.Scan(
 			&i.RealtorID,
 			&i.Name,

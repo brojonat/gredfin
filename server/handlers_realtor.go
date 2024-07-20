@@ -22,11 +22,11 @@ func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		// rows will be returned)
 		if realtorID == "" && name == "" {
 			rs, err := q.SearchRealtorProperties(r.Context(), search)
-			if err == pgx.ErrNoRows || len(rs) == 0 {
-				writeEmptyResultError(w)
-				return
-			}
 			if err != nil {
+				if err == pgx.ErrNoRows {
+					writeEmptyResultError(w)
+					return
+				}
 				writeInternalError(l, w, err)
 				return
 			}

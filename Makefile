@@ -52,3 +52,11 @@ deployment-server:
 	sed -e "s;{{AWS_SECRET_ACCESS_KEY}};$(AWS_SECRET_ACCESS_KEY);g" | \
 	sed -e "s;{{S3_PROPERTY_BUCKET}};$(S3_PROPERTY_BUCKET);g" | \
 	sed -e "s;{{ALLOWED_ORIGINS}};$(ALLOWED_ORIGINS);g"
+
+backup-db:
+	$(call setup_env, server/.env)
+	docker run -it --rm \
+	-v ./.pgdump:/.pgdump \
+	postgres pg_dump -d ${DATABASE_URL} -Fc -b -v -f .pgdump/pgdump.sql
+	mv .pgdump/pgdump.sql .
+	rmdir .pgdump

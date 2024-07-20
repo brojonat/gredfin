@@ -3,6 +3,35 @@ SELECT *
 FROM realtor
 WHERE name = @name AND company = @company;
 
+-- name: SearchRealtorProperties :many
+-- List realtors with some useful aggregate data. This is like the "realtor
+-- stats" handler. This lets us do more aggregation on the backend and reduce
+-- bandwidth.
+SELECT *
+FROM (
+	SELECT
+		rp.name, rp.company,
+		COUNT(*)::INT AS "property_count",
+		AVG(rp.price)::INT AS "avg_price",
+		PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY rp.price)::INT AS "median_price",
+		STRING_AGG(DISTINCT rp.zipcode, ',')::TEXT AS "zipcodes"
+	FROM (
+		SELECT *
+		FROM property_price pp
+		LEFT JOIN realtor_property_through rpt ON pp.property_id = rpt.property_id AND pp.listing_id = rpt.listing_id
+		LEFT JOIN realtor r ON rpt.realtor_id = r.realtor_id
+		WHERE r.name IS NOT NULL AND r.company IS NOT NULL AND pp.zipcode IS NOT NULL
+	) rp
+	GROUP BY rp.name, rp.company
+) AS rs
+WHERE
+  (POSITION(LOWER(@search) IN LOWER(rs.name)) > 0) OR
+  (POSITION(LOWER(@search) IN LOWER(rs.company)) > 0) OR
+  (POSITION(@search IN rs.zipcodes) > 0)
+ORDER BY rs.property_count DESC
+LIMIT 100;
+
+
 -- name: GetRealtorProperties :many
 SELECT *
 FROM realtor r
@@ -16,7 +45,7 @@ WHERE
   -- FIXME: add a bunch more filters, this is the main query
 ORDER BY r.name;
 
--- name: SearchRealtorProperties :many
+-- name: SearchRealtorPropertiesLegacyREMOVEME :many
 SELECT *
 FROM realtor r
 INNER JOIN realtor_property_through rp
