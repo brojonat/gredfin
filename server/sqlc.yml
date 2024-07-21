@@ -37,6 +37,8 @@ sql:
               package: "jsonb"
               type: "SearchScrapeMetadata"
               pointer: true
+          - column: "search.last_scrape_status"
+            go_type: "string"
 
           # realtor table overrides
           - column: "realtor.realtor_id"
@@ -58,6 +60,8 @@ sql:
               type: "PropertyScrapeMetadata"
           - column: "property.price"
             go_type: "int32"
+          - column: "property.last_scrape_status"
+            go_type: "string"
 
           # property_events table overrides
           - column: "property_events.property_id"
@@ -89,3 +93,5 @@ sql:
               import: "github.com/brojonat/gredfin/server/db/jsonb"
               package: "jsonb"
               type: "PropertyScrapeMetadata"
+          - column: "property_price.last_scrape_status"
+            go_type: "string"

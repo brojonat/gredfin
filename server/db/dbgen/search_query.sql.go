@@ -74,6 +74,28 @@ func (q *Queries) GetNNextSearchScrapeForUpdate(ctx context.Context, arg GetNNex
 	return i, err
 }
 
+const getRecentSearchScrapeStats = `-- name: GetRecentSearchScrapeStats :one
+SELECT
+       COUNT(*) FILTER (WHERE last_scrape_status = 'good') AS good,
+       COUNT(*) FILTER (WHERE last_scrape_status = 'pending') AS pending,
+       COUNT(*) FILTER (WHERE last_scrape_status = 'bad') AS bad
+FROM search
+WHERE last_scrape_ts > $1
+`
+
+type GetRecentSearchScrapeStatsRow struct {
+	Good    int64 `json:"good"`
+	Pending int64 `json:"pending"`
+	Bad     int64 `json:"bad"`
+}
+
+func (q *Queries) GetRecentSearchScrapeStats(ctx context.Context, lastScrapeTs pgtype.Timestamp) (GetRecentSearchScrapeStatsRow, error) {
+	row := q.db.QueryRow(ctx, getRecentSearchScrapeStats, lastScrapeTs)
+	var i GetRecentSearchScrapeStatsRow
+	err := row.Scan(&i.Good, &i.Pending, &i.Bad)
+	return i, err
+}
+
 const getSearch = `-- name: GetSearch :one
 SELECT search_id, query, last_scrape_ts, last_scrape_status, last_scrape_metadata FROM search
 WHERE search_id = $1 LIMIT 1

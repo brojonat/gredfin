@@ -31,11 +31,16 @@ SELECT SUM(m.value::NUMERIC)
 FROM "search" AS s, jsonb_each(last_scrape_metadata) AS m
 WHERE m.key = 'success_count';
 
-SELECT * FROM "search" s;
+SELECT * FROM "search" s WHERE last_scrape_status = 'pending';
+
+SELECT last_scrape_status, COUNT(*) AS count 
+FROM property
+WHERE last_scrape_ts > $1
+GROUP BY last_scrape_status; 
 
 SELECT COUNT(*) FROM "search" WHERE last_scrape_metadata = '{}'::JSONB;
 
-UPDATE "search" SET last_scrape_status = 'good' WHERE last_scrape_status != 'good';
+UPDATE "search" SET last_scrape_status = 'good' WHERE search_id =312;
 UPDATE "search" SET last_scrape_metadata = '{}'::JSONB WHERE TRUE;
 UPDATE "search" SET last_scrape_ts = '1970-01-01 00:00:00.000'::TIMESTAMP WHERE TRUE;
 

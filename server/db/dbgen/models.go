@@ -30,7 +30,7 @@ type Property struct {
 	State              pgtype.Text                  `json:"state"`
 	Location           *geometry.Geometry           `json:"location"`
 	LastScrapeTS       pgtype.Timestamp             `json:"last_scrape_ts"`
-	LastScrapeStatus   pgtype.Text                  `json:"last_scrape_status"`
+	LastScrapeStatus   string                       `json:"last_scrape_status"`
 	LastScrapeMetadata jsonb.PropertyScrapeMetadata `json:"last_scrape_metadata"`
 }
 
@@ -60,7 +60,7 @@ type PropertyPrice struct {
 	State              pgtype.Text                  `json:"state"`
 	Location           *geometry.Geometry           `json:"location"`
 	LastScrapeTS       pgtype.Timestamp             `json:"last_scrape_ts"`
-	LastScrapeStatus   pgtype.Text                  `json:"last_scrape_status"`
+	LastScrapeStatus   string                       `json:"last_scrape_status"`
 	LastScrapeMetadata jsonb.PropertyScrapeMetadata `json:"last_scrape_metadata"`
 }
 

@@ -210,7 +210,7 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 		if !updateData.LastScrapeTS.Time.IsZero() {
 			pd.LastScrapeTS = updateData.LastScrapeTS
 		}
-		if updateData.LastScrapeStatus.String != "" {
+		if updateData.LastScrapeStatus != "" {
 			pd.LastScrapeStatus = updateData.LastScrapeStatus
 		}
 		if updateData.LastScrapeMetadata.InitialInfoHash != "" {
@@ -324,7 +324,7 @@ func handlePropertyClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) 
 			dbgen.UpdatePropertyStatusParams{
 				PropertyID:       prop.PropertyID,
 				ListingID:        prop.ListingID,
-				LastScrapeStatus: pgtype.Text{String: ScrapeStatusPending, Valid: true},
+				LastScrapeStatus: ScrapeStatusPending,
 			},
 		)
 		w.WriteHeader(http.StatusOK)
@@ -386,5 +386,27 @@ func handleGetPresignedPutURL(l *slog.Logger, s3c *s3.Client, q *dbgen.Queries) 
 		}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: presignedPutRequest.URL})
+	}
+}
+
+func handleGetRecentPropertyScrapeStats(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		dp := r.URL.Query().Get("duration")
+		if dp == "" {
+			dp = "5m"
+		}
+		dur, err := time.ParseDuration(dp)
+		if err != nil {
+			writeBadRequestError(w, fmt.Errorf("could not parse duration %s", dp))
+			return
+		}
+		ts := time.Now().Add(-dur)
+		res, err := q.GetRecentPropertyScrapeStats(r.Context(), pgtype.Timestamp{Time: ts, Valid: true})
+		if err != nil {
+			writeInternalError(l, w, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(res)
 	}
 }

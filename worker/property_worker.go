@@ -159,7 +159,7 @@ func MakePropertyWorkerFunc(
 		payload := dbgen.PutPropertyParams{
 			PropertyID:       p.PropertyID,
 			ListingID:        p.ListingID,
-			LastScrapeStatus: pgtype.Text{String: server.ScrapeStatusGood, Valid: true},
+			LastScrapeStatus: server.ScrapeStatusGood,
 			LastScrapeMetadata: jsonb.PropertyScrapeMetadata{
 				InitialInfoHash: hashBytes(iiRes.Payload),
 				MLSHash:         hashBytes(mlsRes.Payload),
@@ -430,7 +430,7 @@ func markPropertyScrapeBad(endpoint string, h http.Header, pid, lid int32) error
 	payload := dbgen.UpdatePropertyStatusParams{
 		PropertyID:       pid,
 		ListingID:        lid,
-		LastScrapeStatus: pgtype.Text{String: server.ScrapeStatusBad, Valid: true},
+		LastScrapeStatus: server.ScrapeStatusBad,
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {

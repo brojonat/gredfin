@@ -111,9 +111,9 @@ ORDER BY property_id
 `
 
 type GetPropertiesBasicParams struct {
-	PropertyID       int32       `json:"property_id"`
-	ListingID        int32       `json:"listing_id"`
-	LastScrapeStatus pgtype.Text `json:"last_scrape_status"`
+	PropertyID       int32  `json:"property_id"`
+	ListingID        int32  `json:"listing_id"`
+	LastScrapeStatus string `json:"last_scrape_status"`
 }
 
 // FIXME: It is unfortunate that the current implementation relies on the zero
@@ -160,9 +160,9 @@ ORDER BY property_id
 `
 
 type GetPropertiesWithPriceParams struct {
-	PropertyID       int32       `json:"property_id"`
-	ListingID        int32       `json:"listing_id"`
-	LastScrapeStatus pgtype.Text `json:"last_scrape_status"`
+	PropertyID       int32  `json:"property_id"`
+	ListingID        int32  `json:"listing_id"`
+	LastScrapeStatus string `json:"last_scrape_status"`
 }
 
 // FIXME: It is unfortunate that the current implementation relies on the zero
@@ -257,6 +257,28 @@ func (q *Queries) GetPropertyWithPrice(ctx context.Context, arg GetPropertyWithP
 		&i.LastScrapeStatus,
 		&i.LastScrapeMetadata,
 	)
+	return i, err
+}
+
+const getRecentPropertyScrapeStats = `-- name: GetRecentPropertyScrapeStats :one
+SELECT
+       COUNT(*) FILTER (WHERE last_scrape_status = 'good') AS good,
+       COUNT(*) FILTER (WHERE last_scrape_status = 'pending') AS pending,
+       COUNT(*) FILTER (WHERE last_scrape_status = 'bad') AS bad
+FROM property
+WHERE last_scrape_ts > $1
+`
+
+type GetRecentPropertyScrapeStatsRow struct {
+	Good    int64 `json:"good"`
+	Pending int64 `json:"pending"`
+	Bad     int64 `json:"bad"`
+}
+
+func (q *Queries) GetRecentPropertyScrapeStats(ctx context.Context, lastScrapeTs pgtype.Timestamp) (GetRecentPropertyScrapeStatsRow, error) {
+	row := q.db.QueryRow(ctx, getRecentPropertyScrapeStats, lastScrapeTs)
+	var i GetRecentPropertyScrapeStatsRow
+	err := row.Scan(&i.Good, &i.Pending, &i.Bad)
 	return i, err
 }
 
@@ -358,7 +380,7 @@ type PutPropertyParams struct {
 	State              pgtype.Text                  `json:"state"`
 	Location           *geometry.Geometry           `json:"location"`
 	LastScrapeTS       pgtype.Timestamp             `json:"last_scrape_ts"`
-	LastScrapeStatus   pgtype.Text                  `json:"last_scrape_status"`
+	LastScrapeStatus   string                       `json:"last_scrape_status"`
 	LastScrapeMetadata jsonb.PropertyScrapeMetadata `json:"last_scrape_metadata"`
 }
 
@@ -386,9 +408,9 @@ WHERE property_id = $1 AND listing_id = $2
 `
 
 type UpdatePropertyStatusParams struct {
-	PropertyID       int32       `json:"property_id"`
-	ListingID        int32       `json:"listing_id"`
-	LastScrapeStatus pgtype.Text `json:"last_scrape_status"`
+	PropertyID       int32  `json:"property_id"`
+	ListingID        int32  `json:"listing_id"`
+	LastScrapeStatus string `json:"last_scrape_status"`
 }
 
 func (q *Queries) UpdatePropertyStatus(ctx context.Context, arg UpdatePropertyStatusParams) error {

@@ -49,3 +49,11 @@ WHERE search_id = $1;
 -- name: DeleteSearchByQuery :exec
 DELETE FROM search
 WHERE query = $1;
+
+-- name: GetRecentSearchScrapeStats :one
+SELECT
+       COUNT(*) FILTER (WHERE last_scrape_status = 'good') AS good,
+       COUNT(*) FILTER (WHERE last_scrape_status = 'pending') AS pending,
+       COUNT(*) FILTER (WHERE last_scrape_status = 'bad') AS bad
+FROM search
+WHERE last_scrape_ts > $1;

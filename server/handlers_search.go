@@ -3,9 +3,11 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/brojonat/gredfin/server/db/dbgen"
 	"github.com/brojonat/gredfin/server/db/jsonb"
@@ -225,5 +227,27 @@ func handleSearchSetStatus(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+	}
+}
+
+func handleGetRecentSearchScrapeStats(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		dp := r.URL.Query().Get("duration")
+		if dp == "" {
+			dp = "5m"
+		}
+		dur, err := time.ParseDuration(dp)
+		if err != nil {
+			writeBadRequestError(w, fmt.Errorf("could not parse duration %s", dp))
+			return
+		}
+		ts := time.Now().Add(-dur)
+		res, err := q.GetRecentSearchScrapeStats(r.Context(), pgtype.Timestamp{Time: ts, Valid: true})
+		if err != nil {
+			writeInternalError(l, w, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(res)
 	}
 }

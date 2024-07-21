@@ -166,5 +166,17 @@ func getRootHandler(
 		apiMode(l, maxBytes, headers, methods, origins),
 		mustAuth(fbc),
 	))
+
+	// scrape stats routes
+	mux.HandleFunc("GET /admin/search-scrape-stats", adaptHandler(
+		handleGetRecentSearchScrapeStats(l, q),
+		apiMode(l, maxBytes, headers, methods, origins),
+		mustAuth(nil),
+	))
+	mux.HandleFunc("GET /admin/property-scrape-stats", adaptHandler(
+		handleGetRecentPropertyScrapeStats(l, q),
+		apiMode(l, maxBytes, headers, methods, origins),
+		mustAuth(nil),
+	))
 	return mux
 }
