@@ -264,7 +264,8 @@ const getRecentPropertyScrapeStats = `-- name: GetRecentPropertyScrapeStats :one
 SELECT
        COUNT(*) FILTER (WHERE last_scrape_status = 'good') AS good,
        COUNT(*) FILTER (WHERE last_scrape_status = 'pending') AS pending,
-       COUNT(*) FILTER (WHERE last_scrape_status = 'bad') AS bad
+       COUNT(*) FILTER (WHERE last_scrape_status = 'bad') AS bad,
+       COUNT(*) FILTER (WHERE last_scrape_status IS NULL) AS "null"
 FROM property
 WHERE last_scrape_ts > $1
 `
@@ -273,12 +274,18 @@ type GetRecentPropertyScrapeStatsRow struct {
 	Good    int64 `json:"good"`
 	Pending int64 `json:"pending"`
 	Bad     int64 `json:"bad"`
+	Null    int64 `json:"null"`
 }
 
 func (q *Queries) GetRecentPropertyScrapeStats(ctx context.Context, lastScrapeTs pgtype.Timestamp) (GetRecentPropertyScrapeStatsRow, error) {
 	row := q.db.QueryRow(ctx, getRecentPropertyScrapeStats, lastScrapeTs)
 	var i GetRecentPropertyScrapeStatsRow
-	err := row.Scan(&i.Good, &i.Pending, &i.Bad)
+	err := row.Scan(
+		&i.Good,
+		&i.Pending,
+		&i.Bad,
+		&i.Null,
+	)
 	return i, err
 }
 

@@ -54,6 +54,7 @@ WHERE query = $1;
 SELECT
        COUNT(*) FILTER (WHERE last_scrape_status = 'good') AS good,
        COUNT(*) FILTER (WHERE last_scrape_status = 'pending') AS pending,
-       COUNT(*) FILTER (WHERE last_scrape_status = 'bad') AS bad
+       COUNT(*) FILTER (WHERE last_scrape_status = 'bad') AS bad,
+       COUNT(*) FILTER (WHERE last_scrape_status IS NULL) AS "null"
 FROM search
 WHERE last_scrape_ts > $1;
