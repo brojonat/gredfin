@@ -60,3 +60,9 @@ backup-db:
 	postgres pg_dump -d ${DATABASE_URL} -Fc -b -v -f .pgdump/pgdump.sql
 	mv .pgdump/pgdump.sql .
 	rmdir .pgdump
+
+restore-db:
+	$(call setup_env, server/.env.restore-db)
+	docker run -it --rm \
+	-v ./pgdump.sql:/pgdump.sql \
+	postgres pg_restore -d ${DATABASE_URL} -v -j 2 --no-owner pgdump.sql

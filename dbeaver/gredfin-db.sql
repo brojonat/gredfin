@@ -60,5 +60,28 @@ GROUP BY r.realtor_id, r.name, r.company
 ORDER BY "Property Count" DESC
 );
 
+-- List realtors with some useful aggregate data. This is like the "realtor stats" handler. This
+-- lets us do more aggregation on the backend and reduce bandwidth.
+SELECT name, company, property_count, avg_price, median_price, zipcodes
+FROM (
+	SELECT
+		rp.name, rp.company,
+		COUNT(*) AS "property_count",
+		AVG(rp.price) AS "avg_price",
+		PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY rp.price) AS "median_price",
+		STRING_AGG(DISTINCT rp.zipcode, ',')::TEXT AS "zipcodes"
+	FROM (
+		SELECT pp.property_id, pp.listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata, rpt.realtor_id, rpt.property_id, rpt.listing_id, r.realtor_id, name, company
+		FROM property_price pp
+		LEFT JOIN realtor_property_through rpt ON pp.property_id = rpt.property_id AND pp.listing_id = rpt.listing_id
+		LEFT JOIN realtor r ON rpt.realtor_id = r.realtor_id
+		WHERE r.name IS NOT NULL AND r.company IS NOT NULL
+	) rp
+	GROUP BY rp.name, rp.company
+) AS rs
+WHERE 'foo' != 'abc'
+ORDER BY rs.property_count DESC;
+
+
 
 

@@ -1,6 +1,6 @@
 # gredfin
 
-I wanted to build a package to scrape property data. I was able to find an unofficial Redfin client implemented in Python, so I decided I'd implement it in Go and build this project around it. The ultimate goal is to surface a list of realtors and their property sale history to provide everyone with a clear record of their realtor's past performance. The idea is to regularly scrape Redfin (or any realty API) for property data, store the data, perform analytics on it, and expose the data to a client (Flutter) app. An HTTP server manages job queues and provides REST API endpoints for accessing the data; distributed workers pull jobs from the queue and upload the results back to the server.
+I wanted to build a package to scrape property data. I was able to find an unofficial Redfin client implemented in Python, so I decided I'd implement it in Go and build this project around it. The ultimate goal is to surface a list of realtors and their property listings and sale history to provide everyone with a clear record of their realtor's past performance. The idea is to regularly scrape Redfin (or any realty API) for property data, store the data, perform analytics on it, and expose the data to a client (Flutter) app. An HTTP server manages job queues and provides REST API endpoints for accessing the data; distributed workers pull jobs from the queue and upload the results back to the server.
 
 ## Overall Strategy
 
@@ -33,11 +33,15 @@ This is a client wrapper around the unofficial Redfin API. Workers will typicall
 
 ## Package Server
 
-This is an HTTP server that provides an interface to the DB and cloud storage. Clients use this API to pull "jobs" (i.e., scraping targets), run their job, and then upload data to the cloud and/or server. The server also provides things like S3 Presigned URLs to workers to they can upload their data to the cloud without needing any cloud credentials, bucket details, etc. All routes require authentication in the form of a `Authorization` header specifying a `Bearer` token in the form of a JWT. Tokens can be obtained from the server by supplying the necessary passphrase.
+This is an HTTP server that provides an interface to the DB and cloud storage. Clients use this API to pull "jobs" (i.e., scraping targets), run their job, and then upload data to the cloud and/or server. The server also provides things like S3 Presigned URLs to workers to they can upload their data to the cloud without needing any cloud credentials, bucket details, etc. All routes require authentication in the form of a `Authorization` header specifying a `Bearer` token in the form of a JWT. The server also supports a `Firebase-JWT` header that can act as an authorization token. There is a convenience route on the server `POST /token?email=[user email]`. The user must set the `Authorization` header value to the value of the `SERVER_SECRET_KEY` env; the response will contain a valid JWT.
 
 ## Package Worker
 
 This is a collection of workers that run tasks on regular intervals. They'll do things like pull a list of properties from the server and scrape each one for details. You can implement your own worker function easily; the interface is rather simple: `func(context.Context, *slog.Logger)`. Any function implementing this interface can be supplied as a worker that runs on the specified interval.
+
+## Database Migration
+
+It's relatively simple to migrate to a different database. You can use `make backup-db` which will produce a backup in `pgdump.sql`, which you can then upload to a new database with `make restore-db`; you just need to specify the `DATABASE_URL` env in `/server/.env.restore-db`. Before attempting to restore, you'll need to install `postgresql` **and** `postgis`, and make sure the database is accepting connections from the Internet. Connect to the database and create a new database (e.g., `new-redfin`), and run `CREATE EXTENSION postgis;`. Then you should be good to run `make restore-db`. Make sure you update the connection that your database clients/scripts are using (e.g., `dbeaver`, `pgadmin`, etc.).
 
 # Questions to Ask a Prospective Realtor (from Redfin)
 
