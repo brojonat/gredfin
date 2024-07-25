@@ -1,0 +1,6 @@
+resources:
+- server.yaml
+secretGenerator:
+- name: realtor-rank-secret-server-envs
+  files:
+  - ../.env

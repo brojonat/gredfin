@@ -156,12 +156,12 @@ func getRootHandler(
 	))
 
 	// plot data routes
-	mux.HandleFunc("GET /realtor-plot", adaptHandler(
+	mux.HandleFunc("GET /realtor-prices-plot", adaptHandler(
 		handlePlotDataRealtorPrices(l, q),
 		apiMode(l, maxBytes, headers, methods, origins),
 		mustAuth(fbc),
 	))
-	mux.HandleFunc("GET /property-event-plot", adaptHandler(
+	mux.HandleFunc("GET /property-prices-plot", adaptHandler(
 		handlePlotDataPropertyPrices(l, q),
 		apiMode(l, maxBytes, headers, methods, origins),
 		mustAuth(fbc),

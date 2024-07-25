@@ -9,7 +9,6 @@ build-cli:
 
 build-push-server:
 	$(call setup_env, server/.env)
-	CGO_ENABLED=0 GOOS=linux go build -o ./cli cmd/*.go
 	docker build -f Dockerfile.server -t ${SERVER_IMG_TAG} .
 	docker push ${SERVER_IMG_TAG}
 
@@ -22,7 +21,7 @@ migrate:
 
 run-http-server:
 	$(call setup_env, server/.env)
-	./cli run http-server -d ${DATABASE_URL}
+	./cli run http-server -d ${DATABASE_URL} --log-level -4
 
 run-search-worker:
 	$(call setup_env, worker/.env)
@@ -42,7 +41,7 @@ run-property-worker:
 
 deployment-server:
 	$(call setup_env, server/.env)
-	@sed -e "s;{{DOCKER_REPO}};$(DOCKER_REPO);g" server/k8s/server.yml | \
+	@sed -e "s;{{DOCKER_REPO}};$(DOCKER_REPO);g" server/k8s/server.yaml | \
 	sed -e "s;{{SERVER_IMG_TAG}};$(SERVER_IMG_TAG);g" | \
 	sed -e "s;{{SERVER_PORT}};$(SERVER_PORT);g" | \
 	sed -e "s;{{DATABASE_URL}};$(DATABASE_URL);g" | \
@@ -51,7 +50,11 @@ deployment-server:
 	sed -e "s;{{AWS_ACCESS_KEY_ID}};$(AWS_ACCESS_KEY_ID);g" | \
 	sed -e "s;{{AWS_SECRET_ACCESS_KEY}};$(AWS_SECRET_ACCESS_KEY);g" | \
 	sed -e "s;{{S3_PROPERTY_BUCKET}};$(S3_PROPERTY_BUCKET);g" | \
-	sed -e "s;{{ALLOWED_ORIGINS}};$(ALLOWED_ORIGINS);g"
+	sed -e "s;{{CORS_ORIGINS}};$(CORS_ORIGINS);g" | \
+	sed -e "s;{{CORS_METHODS}};$(CORS_METHODS);g" | \
+	sed -e "s;{{CORS_HEADERS}};$(CORS_HEADERS);g" | \
+	sed -e "s;{{REDFIN_USER_AGENT}};$(REDFIN_USER_AGENT);g" | \
+	sed -e "s;{{FIREBASE_CONFIG}};$(FIREBASE_CONFIG);g"
 
 backup-db:
 	$(call setup_env, server/.env)

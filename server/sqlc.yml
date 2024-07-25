@@ -21,14 +21,22 @@ sql:
           source_id: "SourceID"
         overrides:
 
-          ## db type overrides
+          # db type overrides
           - db_type: "geometry"
             go_type:
-              import: "github.com/twpayne/go-geos/geometry"
+              import: "github.com/twpayne/go-geos"
               package: "geometry"
               type: "Geometry"
               pointer: true
             null: true
+
+          # - db_type: "geometry"
+          #   go_type:
+          #     import: "github.com/twpayne/go-geom"
+          #     package: "geom"
+          #     type: "Point"
+          #     pointer: true
+          #   null: true
 
           # search table overrides
           - column: "search.last_scrape_metadata"

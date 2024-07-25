@@ -22,11 +22,11 @@ func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		// rows will be returned)
 		if realtorID == "" && name == "" {
 			rs, err := q.SearchRealtorProperties(r.Context(), search)
+			if rs == nil || err == pgx.ErrNoRows {
+				writeEmptyResultError(w)
+				return
+			}
 			if err != nil {
-				if err == pgx.ErrNoRows {
-					writeEmptyResultError(w)
-					return
-				}
 				writeInternalError(l, w, err)
 				return
 			}
@@ -43,7 +43,7 @@ func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 				return
 			}
 			rs, err := q.GetRealtorProperties(r.Context(), dbgen.GetRealtorPropertiesParams{RealtorID: int32(rid)})
-			if err == pgx.ErrNoRows {
+			if rs == nil || err == pgx.ErrNoRows {
 				writeEmptyResultError(w)
 				return
 			}
@@ -58,7 +58,7 @@ func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 
 		// name specified, return listings under that name
 		rs, err := q.GetRealtorProperties(r.Context(), dbgen.GetRealtorPropertiesParams{Name: name})
-		if err == pgx.ErrNoRows {
+		if rs == nil || err == pgx.ErrNoRows {
 			writeEmptyResultError(w)
 			return
 		}

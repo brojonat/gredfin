@@ -38,6 +38,8 @@ FROM property
 WHERE last_scrape_ts > $1
 GROUP BY last_scrape_status; 
 
+SELECT * FROM property WHERE last_scrape_status ='pending';
+
 SELECT COUNT(*) FROM "search" WHERE last_scrape_metadata = '{}'::JSONB;
 
 UPDATE "search" SET last_scrape_status = 'good' WHERE search_id =312;

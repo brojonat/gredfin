@@ -24,7 +24,7 @@ func handleSearchGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		// no identifier supplied, return listing
 		if search_id == "" && search_query == "" {
 			ss, err := q.ListSearches(r.Context())
-			if err == pgx.ErrNoRows {
+			if ss == nil || err == pgx.ErrNoRows {
 				writeEmptyResultError(w)
 				return
 			}

@@ -31,7 +31,6 @@ WHERE
 ORDER BY rs.property_count DESC
 LIMIT 100;
 
-
 -- name: GetRealtorProperties :many
 SELECT *
 FROM realtor r
@@ -44,19 +43,6 @@ WHERE
   (r.name = @name OR @name = '' OR @name IS NULL)
   -- FIXME: add a bunch more filters, this is the main query
 ORDER BY r.name;
-
--- name: SearchRealtorPropertiesLegacyREMOVEME :many
-SELECT *
-FROM realtor r
-INNER JOIN realtor_property_through rp
-  ON r.realtor_id = rp.realtor_id
-INNER JOIN property_price p
-  ON rp.property_id = p.property_id AND rp.listing_id = p.listing_id
-WHERE
-  (POSITION(LOWER(@search) IN LOWER(r.name)) > 0) OR
-  (POSITION(LOWER(@search) IN LOWER(r.company)) > 0)
-ORDER BY r.name
-LIMIT 100;
 
 -- name: CreateRealtor :exec
 INSERT INTO realtor (

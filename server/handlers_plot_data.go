@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/brojonat/gredfin/server/db/dbgen"
+	"github.com/brojonat/histogram"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -24,28 +25,44 @@ func handlePlotDataRealtorPrices(l *slog.Logger, q *dbgen.Queries) http.HandlerF
 		}
 
 		switch v {
-		// This case returns a list of { price } objects representing the
-		// realtor's prices.
+		// This case returns a [(x1, y1), ...] that can be used in StepLineSeries
 		case "", "1":
-			events, err := q.GetRealtorProperties(r.Context(), dbgen.GetRealtorPropertiesParams{Name: name})
+			// get the data
+			ps, err := q.GetRealtorProperties(r.Context(), dbgen.GetRealtorPropertiesParams{Name: name})
+			if ps == nil || err == pgx.ErrNoRows {
+				writeEmptyResultError(w)
+				return
+			}
 			if err != nil {
-				if err == pgx.ErrNoRows {
-					w.WriteHeader(http.StatusNotFound)
-					json.NewEncoder(w).Encode(DefaultJSONResponse{Error: fmt.Sprintf("no properties for realtor %s", name)})
-					return
-				}
 				writeInternalError(l, w, err)
 				return
 			}
-			type rr struct {
-				Price float64 `json:"price"`
+			// histogram the prices
+			prices := []float64{}
+			for _, p := range ps {
+				prices = append(prices, float64(p.Price))
 			}
-			res := []rr{}
-			for _, e := range events {
-				res = append(res, rr{float64(e.Price)})
+			bs, err := histogram.BSExactSpan(10)(prices)
+			if err != nil {
+				writeInternalError(l, w, err)
+				return
+			}
+			h, err := histogram.Hist(prices, bs, histogram.DefaultBucketer)
+			if err != nil {
+				writeInternalError(l, w, err)
+				return
+			}
+			// write the output
+			type bin struct {
+				Price float64 `json:"price"`
+				Count int     `json:"count"`
+			}
+			bins := []bin{}
+			for _, b := range h.Buckets {
+				bins = append(bins, bin{Price: b.Min, Count: b.Count})
 			}
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(res)
+			json.NewEncoder(w).Encode(bins)
 			return
 		default:
 			writeBadRequestError(w, fmt.Errorf("unsupported version: %s", v))
@@ -76,8 +93,8 @@ func handlePlotDataPropertyPrices(l *slog.Logger, q *dbgen.Queries) http.Handler
 			// This data version will iterate over the events and send the
 			// timestamp and price if the price is non-zero.
 			type chartData struct {
-				X time.Time `json:"timestamp"`
-				Y int32     `json:"price"`
+				X string `json:"timestamp"`
+				Y int32  `json:"price"`
 			}
 			res := []chartData{}
 			for _, e := range events {
@@ -85,7 +102,7 @@ func handlePlotDataPropertyPrices(l *slog.Logger, q *dbgen.Queries) http.Handler
 					continue
 				}
 				evt := chartData{
-					X: e.EventTS.Time,
+					X: e.EventTS.Time.Format(time.RFC3339),
 					Y: e.Price,
 				}
 				res = append(res, evt)

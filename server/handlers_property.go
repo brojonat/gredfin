@@ -26,7 +26,7 @@ func handlePropertyGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		// no identifier, list properties
 		if propertyID == "" && listingID == "" {
 			props, err := q.ListPropertiesPrices(r.Context())
-			if err == pgx.ErrNoRows {
+			if props == nil || err == pgx.ErrNoRows {
 				writeEmptyResultError(w)
 				return
 			}
@@ -55,7 +55,7 @@ func handlePropertyGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 				return
 			}
 			props, err := q.GetPropertiesWithPrice(r.Context(), dbgen.GetPropertiesWithPriceParams{PropertyID: int32(pid)})
-			if err == pgx.ErrNoRows {
+			if props == nil || err == pgx.ErrNoRows {
 				writeEmptyResultError(w)
 				return
 			}

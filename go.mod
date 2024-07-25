@@ -67,6 +67,7 @@ require (
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.15
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.54.2
+	github.com/brojonat/histogram v0.0.0-20240722213051-fbb17fddc501
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f
@@ -76,6 +77,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/stretchr/testify v1.9.0 // indirect
+	github.com/twpayne/go-geom v1.5.4
 	github.com/twpayne/go-geos v0.18.0
 	github.com/urfave/cli/v2 v2.27.2
 	golang.org/x/crypto v0.25.0 // indirect

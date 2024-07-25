@@ -1,0 +1,13 @@
+# secrets
+server/.env*
+worker/.env*
+
+# junk
+.vscode
+bootstrap
+bruno
+dbeaver
+test-data
+cli
+pgdump.sql
+todo.txt

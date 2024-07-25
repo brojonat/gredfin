@@ -100,55 +100,6 @@ func (q *Queries) GetNNextPropertyScrapeForUpdate(ctx context.Context, arg GetNN
 	return i, err
 }
 
-const getPropertiesBasic = `-- name: GetPropertiesBasic :many
-SELECT property_id, listing_id, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata
-FROM property
-WHERE
-  (property_id = $1 OR $1 = 0) AND
-  (listing_id = $2 OR $2 = 0) AND
-  (last_scrape_status = $3 OR $3 IS NULL OR $3 = '')
-ORDER BY property_id
-`
-
-type GetPropertiesBasicParams struct {
-	PropertyID       int32  `json:"property_id"`
-	ListingID        int32  `json:"listing_id"`
-	LastScrapeStatus string `json:"last_scrape_status"`
-}
-
-// FIXME: It is unfortunate that the current implementation relies on the zero
-// value of the Go type. This might be fixable by using the pgtype.
-func (q *Queries) GetPropertiesBasic(ctx context.Context, arg GetPropertiesBasicParams) ([]Property, error) {
-	rows, err := q.db.Query(ctx, getPropertiesBasic, arg.PropertyID, arg.ListingID, arg.LastScrapeStatus)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Property
-	for rows.Next() {
-		var i Property
-		if err := rows.Scan(
-			&i.PropertyID,
-			&i.ListingID,
-			&i.URL,
-			&i.Zipcode,
-			&i.City,
-			&i.State,
-			&i.Location,
-			&i.LastScrapeTS,
-			&i.LastScrapeStatus,
-			&i.LastScrapeMetadata,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getPropertiesWithPrice = `-- name: GetPropertiesWithPrice :many
 SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata
 FROM property_price
@@ -165,8 +116,6 @@ type GetPropertiesWithPriceParams struct {
 	LastScrapeStatus string `json:"last_scrape_status"`
 }
 
-// FIXME: It is unfortunate that the current implementation relies on the zero
-// value of the Go type. This might be fixable by using the pgtype.
 func (q *Queries) GetPropertiesWithPrice(ctx context.Context, arg GetPropertiesWithPriceParams) ([]PropertyPrice, error) {
 	rows, err := q.db.Query(ctx, getPropertiesWithPrice, arg.PropertyID, arg.ListingID, arg.LastScrapeStatus)
 	if err != nil {
@@ -287,44 +236,6 @@ func (q *Queries) GetRecentPropertyScrapeStats(ctx context.Context, lastScrapeTs
 		&i.Null,
 	)
 	return i, err
-}
-
-const listProperties = `-- name: ListProperties :many
-SELECT property_id, listing_id, price, url, zipcode, city, state, location, last_scrape_ts, last_scrape_status, last_scrape_metadata
-FROM property_price
-ORDER BY property_id
-`
-
-func (q *Queries) ListProperties(ctx context.Context) ([]PropertyPrice, error) {
-	rows, err := q.db.Query(ctx, listProperties)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PropertyPrice
-	for rows.Next() {
-		var i PropertyPrice
-		if err := rows.Scan(
-			&i.PropertyID,
-			&i.ListingID,
-			&i.Price,
-			&i.URL,
-			&i.Zipcode,
-			&i.City,
-			&i.State,
-			&i.Location,
-			&i.LastScrapeTS,
-			&i.LastScrapeStatus,
-			&i.LastScrapeMetadata,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const listPropertiesPrices = `-- name: ListPropertiesPrices :many
