@@ -8,6 +8,5 @@ bootstrap
 bruno
 dbeaver
 test-data
-cli
 pgdump.sql
 todo.txt

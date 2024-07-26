@@ -10,7 +10,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/brojonat/gredfin/redfin"
 	"github.com/brojonat/gredfin/server/db/dbgen"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	pgxgeom "github.com/twpayne/pgx-geom"
 )
 
 func getConnPool(ctx context.Context, url string) (*pgxpool.Pool, error) {
@@ -18,21 +20,9 @@ func getConnPool(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, err
 	}
-	// This is recommended by sqlc but since we use
-	// `github.com/twpayne/go-geos/Geometry`, this seems to cause an error when
-	// reading from the database (specifically it causes pgx.Row.Scan to return
-	// errors.ErrUnsupported). Omitting this seems to work fine, not really sure
-	// why yet, but if it works it works and I have other things that need my
-	// attention.
-	// cfg.AfterConnect = func(ctx context.Context, c *pgx.Conn) error {
-	// 	if err := pgxgeos.Register(ctx, c, geos.NewContext()); err != nil {
-	// 		return err
-	// 	}
-	// 	if err := pgxgeom.Register(ctx, c); err != nil {
-	// 		return err
-	// 	}
-	// 	return nil
-	// }
+	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		return pgxgeom.Register(ctx, conn)
+	}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to database: %v", err)

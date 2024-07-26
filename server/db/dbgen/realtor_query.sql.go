@@ -10,7 +10,7 @@ import (
 
 	jsonb "github.com/brojonat/gredfin/server/db/jsonb"
 	"github.com/jackc/pgx/v5/pgtype"
-	geometry "github.com/twpayne/go-geos/geometry"
+	geom "github.com/twpayne/go-geom"
 )
 
 const createRealtor = `-- name: CreateRealtor :exec
@@ -127,7 +127,7 @@ type GetRealtorPropertiesRow struct {
 	Zipcode            pgtype.Text                  `json:"zipcode"`
 	City               pgtype.Text                  `json:"city"`
 	State              pgtype.Text                  `json:"state"`
-	Location           *geometry.Geometry           `json:"location"`
+	Location           *geom.Point                  `json:"location"`
 	LastScrapeTS       pgtype.Timestamp             `json:"last_scrape_ts"`
 	LastScrapeStatus   string                       `json:"last_scrape_status"`
 	LastScrapeMetadata jsonb.PropertyScrapeMetadata `json:"last_scrape_metadata"`

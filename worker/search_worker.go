@@ -17,8 +17,7 @@ import (
 	"github.com/brojonat/gredfin/server"
 	"github.com/brojonat/gredfin/server/db/dbgen"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/twpayne/go-geos"
-	"github.com/twpayne/go-geos/geometry"
+	"github.com/twpayne/go-geom"
 )
 
 // Default implementation of a Search scrape worker. The worker pulls a search
@@ -288,13 +287,12 @@ func addPropertyFromURL(
 	if long == nil {
 		return fmt.Errorf("null result extracting longitude")
 	}
-	latitude, longitude := lat.(float64), long.(float64)
-
+	coords := []float64{long.(float64), lat.(float64)}
 	p := &dbgen.CreatePropertyParams{
 		PropertyID: int32(pid),
 		ListingID:  int32(lid),
 		URL:        pgtype.Text{String: url, Valid: true},
-		Location:   geometry.NewGeometry(geos.NewPoint([]float64{longitude, latitude}).SetSRID(4326)),
+		Location:   geom.NewPoint(geom.XY).MustSetCoords(coords).SetSRID(4326),
 	}
 	b, err = json.Marshal(p)
 	if err != nil {

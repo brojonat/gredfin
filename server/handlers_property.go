@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/twpayne/go-geom"
 )
 
 func handlePropertyGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
@@ -35,7 +36,7 @@ func handlePropertyGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 				return
 			}
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(props)
+			json.NewEncoder(w).Encode(makeLocationSerializable(props))
 			return
 		}
 
@@ -64,7 +65,7 @@ func handlePropertyGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 				return
 			}
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(props)
+			json.NewEncoder(w).Encode(makeLocationSerializable(props))
 			return
 		}
 
@@ -91,14 +92,17 @@ func handlePropertyGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(prop)
+		json.NewEncoder(w).Encode(makeLocationSerializable(prop))
 	}
 }
 
 func handlePropertyPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var p dbgen.CreatePropertyParams
-		err := decodeJSONBody(r, &p)
+		var body struct {
+			dbgen.CreatePropertyParams
+			Location Location `json:"location"`
+		}
+		err := decodeJSONBody(r, &body)
 		if err != nil {
 			var mr *MalformedRequest
 			if errors.As(err, &mr) {
@@ -109,9 +113,10 @@ func handlePropertyPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			}
 			return
 		}
+		body.CreatePropertyParams.Location = geom.NewPoint(geom.XY).MustSetCoords(body.Location.Coordinates).SetSRID(4326)
 
 		// check if this url is blocklisted, return early with a 204 if so
-		bps, err := q.ListBlocklistedProperties(r.Context(), []string{p.URL.String})
+		bps, err := q.ListBlocklistedProperties(r.Context(), []string{body.URL.String})
 		if err == nil && len(bps) > 0 {
 			w.WriteHeader(http.StatusAccepted)
 			json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
@@ -124,7 +129,7 @@ func handlePropertyPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		}
 
 		// create the property, ignore "already exists" error
-		err = q.CreateProperty(r.Context(), p)
+		err = q.CreateProperty(r.Context(), body.CreatePropertyParams)
 		if err != nil && !isPGError(err, pgErrorUniqueViolation) {
 			writeInternalError(l, w, err)
 			return
@@ -139,8 +144,11 @@ func handlePropertyPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 // specified data, then writes the resulting object to the model.
 func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var updateData dbgen.PutPropertyParams
-		err := decodeJSONBody(r, &updateData)
+		var body struct {
+			dbgen.PutPropertyParams
+			Location *Location `json:"location"`
+		}
+		err := decodeJSONBody(r, &body)
 		if err != nil {
 			var mr *MalformedRequest
 			if errors.As(err, &mr) {
@@ -164,13 +172,13 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 		// property_price view, since the property_price view surfaces only
 		// properties that have at least one property_event with a price.
 		current, err := q.GetPropertyBasic(r.Context(), dbgen.GetPropertyBasicParams{
-			PropertyID: updateData.PropertyID,
-			ListingID:  updateData.ListingID,
+			PropertyID: body.PropertyID,
+			ListingID:  body.ListingID,
 		})
 		if err != nil {
 			if err == pgx.ErrNoRows {
 				w.WriteHeader(http.StatusNotFound)
-				msg := fmt.Sprintf("property does not exist (pid: %d, lid: %d)", updateData.PropertyID, updateData.ListingID)
+				msg := fmt.Sprintf("property does not exist (pid: %d, lid: %d)", body.PropertyID, body.ListingID)
 				json.NewEncoder(w).Encode(DefaultJSONResponse{Error: msg})
 				return
 			}
@@ -179,7 +187,8 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 		}
 		// Default the update data to the existing data, then for each field, check
 		// if the supplied value is not equal to the zero value. This makes it hard
-		// to set the actual value to the zero value on this route, but I don't care.
+		// to set the actual value to the zero value on this route, and this is painful
+		// to maintain, but it's sufficient for now.
 		pd := dbgen.PutPropertyParams{
 			PropertyID:         current.PropertyID,
 			ListingID:          current.ListingID,
@@ -192,41 +201,45 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 			LastScrapeStatus:   current.LastScrapeStatus,
 			LastScrapeMetadata: current.LastScrapeMetadata,
 		}
-		if updateData.URL.String != "" {
-			pd.URL = updateData.URL
+		if body.URL.String != "" {
+			pd.URL = body.URL
 		}
-		if updateData.Zipcode.String != "" {
-			pd.Zipcode = updateData.Zipcode
+		if body.Zipcode.String != "" {
+			pd.Zipcode = body.Zipcode
 		}
-		if updateData.City.String != "" {
-			pd.City = updateData.City
+		if body.City.String != "" {
+			pd.City = body.City
 		}
-		if updateData.State.String != "" {
-			pd.State = updateData.State
+		if body.State.String != "" {
+			pd.State = body.State
 		}
-		if updateData.Location != nil {
-			pd.Location = updateData.Location
+		if body.Location != nil {
+			gp, err := geom.NewPoint(geom.XY).SetCoords(body.Location.Coordinates)
+			if err != nil {
+				writeBadRequestError(w, fmt.Errorf("bad coordinates"))
+			}
+			pd.Location = gp.SetSRID(4326)
 		}
-		if !updateData.LastScrapeTS.Time.IsZero() {
-			pd.LastScrapeTS = updateData.LastScrapeTS
+		if !body.LastScrapeTS.Time.IsZero() {
+			pd.LastScrapeTS = body.LastScrapeTS
 		}
-		if updateData.LastScrapeStatus != "" {
-			pd.LastScrapeStatus = updateData.LastScrapeStatus
+		if body.LastScrapeStatus != "" {
+			pd.LastScrapeStatus = body.LastScrapeStatus
 		}
-		if updateData.LastScrapeMetadata.InitialInfoHash != "" {
-			pd.LastScrapeMetadata.InitialInfoHash = updateData.LastScrapeMetadata.InitialInfoHash
+		if body.LastScrapeMetadata.InitialInfoHash != "" {
+			pd.LastScrapeMetadata.InitialInfoHash = body.LastScrapeMetadata.InitialInfoHash
 		}
-		if updateData.LastScrapeMetadata.MLSHash != "" {
-			pd.LastScrapeMetadata.MLSHash = updateData.LastScrapeMetadata.MLSHash
+		if body.LastScrapeMetadata.MLSHash != "" {
+			pd.LastScrapeMetadata.MLSHash = body.LastScrapeMetadata.MLSHash
 		}
-		if updateData.LastScrapeMetadata.AVMHash != "" {
-			pd.LastScrapeMetadata.AVMHash = updateData.LastScrapeMetadata.AVMHash
+		if body.LastScrapeMetadata.AVMHash != "" {
+			pd.LastScrapeMetadata.AVMHash = body.LastScrapeMetadata.AVMHash
 		}
-		if updateData.LastScrapeMetadata.ImageURLs != nil {
-			pd.LastScrapeMetadata.ImageURLs = updateData.LastScrapeMetadata.ImageURLs
+		if body.LastScrapeMetadata.ImageURLs != nil {
+			pd.LastScrapeMetadata.ImageURLs = body.LastScrapeMetadata.ImageURLs
 		}
-		if updateData.LastScrapeMetadata.ThumbnailURLs != nil {
-			pd.LastScrapeMetadata.ThumbnailURLs = updateData.LastScrapeMetadata.ThumbnailURLs
+		if body.LastScrapeMetadata.ThumbnailURLs != nil {
+			pd.LastScrapeMetadata.ThumbnailURLs = body.LastScrapeMetadata.ThumbnailURLs
 		}
 		err = q.PutProperty(r.Context(), pd)
 		if err != nil {
@@ -328,7 +341,7 @@ func handlePropertyClaimNext(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) 
 			},
 		)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(prop)
+		json.NewEncoder(w).Encode(makeLocationSerializable(prop))
 	}
 }
 

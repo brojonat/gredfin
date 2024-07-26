@@ -67,7 +67,7 @@ func handleRealtorGet(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(rs)
+		json.NewEncoder(w).Encode(makeLocationSerializable(rs))
 	}
 }
 

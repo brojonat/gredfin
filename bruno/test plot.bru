@@ -5,7 +5,15 @@ meta {
 }
 
 get {
-  url: http://localhost:8080/realtor-plot
+  url: http://localhost:8080/realtor-plot?name=Jason Shapiro
   body: none
   auth: none
+}
+
+query {
+  name: Jason Shapiro
+}
+
+headers {
+  Authorization: Bearer {{AUTH_TOKEN}}
 }

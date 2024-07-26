@@ -54,7 +54,6 @@ func decodeJSONBody(r *http.Request, dst interface{}) error {
 
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
-
 	err := dec.Decode(&dst)
 	if err != nil {
 		var syntaxError *json.SyntaxError
@@ -99,3 +98,24 @@ func decodeJSONBody(r *http.Request, dst interface{}) error {
 
 	return nil
 }
+
+// customEncoder that will automatically handle serializing geom.Point type
+// which for some reason doesn't have a Marshal method implemented.
+// type customEncoder struct {
+// 	*json.Encoder
+// }
+
+// func (e *customEncoder) Encode(v any) error {
+// 	fmt.Println(v)
+// 	switch d := v.(type) {
+// 	case *geom.Point:
+// 		cp := SerialPoint{Type: "Point", Coordinates: d.Coords()}
+// 		return e.Encoder.Encode(cp)
+// 	default:
+// 		return e.Encoder.Encode(v)
+// 	}
+// }
+
+// func newCustomEncoder(w io.Writer) *customEncoder {
+// 	return &customEncoder{Encoder: json.NewEncoder(w)}
+// }

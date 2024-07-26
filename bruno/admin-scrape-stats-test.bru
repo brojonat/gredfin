@@ -5,7 +5,11 @@ meta {
 }
 
 get {
-  url: {{ENDPOINT}}/admin/search-scrape-stats
+  url: {{ENDPOINT}}/admin/property-scrape-stats
   body: none
   auth: none
+}
+
+headers {
+  Authorization: Bearer {{AUTH_TOKEN}}
 }

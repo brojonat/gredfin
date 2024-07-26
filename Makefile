@@ -9,6 +9,7 @@ build-cli:
 
 build-push-server:
 	$(call setup_env, server/.env)
+	CGO_ENABLED=0 GOOS=linux go build -o ./cli cmd/*.go
 	docker build -f Dockerfile.server -t ${SERVER_IMG_TAG} .
 	docker push ${SERVER_IMG_TAG}
 

@@ -10,7 +10,7 @@ import (
 
 	jsonb "github.com/brojonat/gredfin/server/db/jsonb"
 	"github.com/jackc/pgx/v5/pgtype"
-	geometry "github.com/twpayne/go-geos/geometry"
+	geom "github.com/twpayne/go-geom"
 )
 
 const createProperty = `-- name: CreateProperty :exec
@@ -22,10 +22,10 @@ INSERT INTO property (
 `
 
 type CreatePropertyParams struct {
-	PropertyID int32              `json:"property_id"`
-	ListingID  int32              `json:"listing_id"`
-	URL        pgtype.Text        `json:"url"`
-	Location   *geometry.Geometry `json:"location"`
+	PropertyID int32       `json:"property_id"`
+	ListingID  int32       `json:"listing_id"`
+	URL        pgtype.Text `json:"url"`
+	Location   *geom.Point `json:"location"`
 }
 
 func (q *Queries) CreateProperty(ctx context.Context, arg CreatePropertyParams) error {
@@ -296,7 +296,7 @@ type PutPropertyParams struct {
 	Zipcode            pgtype.Text                  `json:"zipcode"`
 	City               pgtype.Text                  `json:"city"`
 	State              pgtype.Text                  `json:"state"`
-	Location           *geometry.Geometry           `json:"location"`
+	Location           *geom.Point                  `json:"location"`
 	LastScrapeTS       pgtype.Timestamp             `json:"last_scrape_ts"`
 	LastScrapeStatus   string                       `json:"last_scrape_status"`
 	LastScrapeMetadata jsonb.PropertyScrapeMetadata `json:"last_scrape_metadata"`

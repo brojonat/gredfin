@@ -33,12 +33,14 @@ WHERE m.key = 'success_count';
 
 SELECT * FROM "search" s WHERE last_scrape_status = 'pending';
 
+SELECT * FROM realtor WHERE name LIKE '%Mat%' AND company LIKE '%Keller%';
+
 SELECT last_scrape_status, COUNT(*) AS count 
 FROM property
 WHERE last_scrape_ts > $1
 GROUP BY last_scrape_status; 
 
-SELECT * FROM property WHERE last_scrape_status ='pending';
+SELECT * FROM property WHERE last_scrape_status ='good';
 
 SELECT COUNT(*) FROM "search" WHERE last_scrape_metadata = '{}'::JSONB;
 
@@ -58,6 +60,8 @@ UPDATE property SET last_scrape_status = 'good' WHERE last_scrape_status != 'goo
 SELECT last_scrape_metadata -> 'image_urls' FROM property_price pp;
 
 SELECT '[1, 2, "foo", null]'::json;
+
+SELECT * FROM pg_catalog.pg_type WHERE oid = 18199;
 
 SELECT sum("Property Count") FROM (
 SELECT r.name, r.company, count(*) AS "Property Count" FROM realtor r 
@@ -86,8 +90,20 @@ FROM (
 	) rp
 	GROUP BY rp.name, rp.company
 ) AS rs
-WHERE 'foo' != 'abc'
-ORDER BY rs.property_count DESC;
+WHERE FALSE
+ORDER BY rs.property_count DESC
+LIMIT 100;
+
+
+
+SELECT * FROM property p 
+WHERE property_id =123
+LIMIT 10;
+
+UPDATE property SET last_scrape_status = 'good' WHERE property_id  = 123;
+
+
+
 
 
 
