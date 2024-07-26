@@ -40,22 +40,13 @@ run-property-worker:
 	--user-agent ${REDFIN_USER_AGENT} \
 	-i 5s --log-level -4
 
-deployment-server:
+deploy-server:
 	$(call setup_env, server/.env)
-	@sed -e "s;{{DOCKER_REPO}};$(DOCKER_REPO);g" server/k8s/server.yaml | \
+	kustomize build --load-restrictor=LoadRestrictionsNone server/k8s | \
+	sed -e "s;{{DOCKER_REPO}};$(DOCKER_REPO);g" | \
 	sed -e "s;{{SERVER_IMG_TAG}};$(SERVER_IMG_TAG);g" | \
-	sed -e "s;{{SERVER_PORT}};$(SERVER_PORT);g" | \
-	sed -e "s;{{DATABASE_URL}};$(DATABASE_URL);g" | \
-	sed -e "s;{{SERVER_SECRET_KEY}};$(SERVER_SECRET_KEY);g" | \
-	sed -e "s;{{AWS_REGION}};$(AWS_REGION);g" | \
-	sed -e "s;{{AWS_ACCESS_KEY_ID}};$(AWS_ACCESS_KEY_ID);g" | \
-	sed -e "s;{{AWS_SECRET_ACCESS_KEY}};$(AWS_SECRET_ACCESS_KEY);g" | \
-	sed -e "s;{{S3_PROPERTY_BUCKET}};$(S3_PROPERTY_BUCKET);g" | \
-	sed -e "s;{{CORS_ORIGINS}};$(CORS_ORIGINS);g" | \
-	sed -e "s;{{CORS_METHODS}};$(CORS_METHODS);g" | \
-	sed -e "s;{{CORS_HEADERS}};$(CORS_HEADERS);g" | \
-	sed -e "s;{{REDFIN_USER_AGENT}};$(REDFIN_USER_AGENT);g" | \
-	sed -e "s;{{FIREBASE_CONFIG}};$(FIREBASE_CONFIG);g"
+	kubectl apply -f -
+	kubectl rollout restart deployment gredfin-backend
 
 backup-db:
 	$(call setup_env, server/.env)

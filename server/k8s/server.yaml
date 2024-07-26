@@ -30,34 +30,9 @@ spec:
       - image: "{{DOCKER_REPO}}{{SERVER_IMG_TAG}}"
         imagePullPolicy: Always
         name: gredfin-backend
-        # env:
-        # - name: SERVER_PORT
-        #   value: "{{SERVER_PORT}}"
-        # - name: DATABASE_URL
-        #   value: "{{DATABASE_URL}}"
-        # - name: SERVER_SECRET_KEY
-        #   value: "{{SERVER_SECRET_KEY}}"
-        # - name: AWS_REGION
-        #   value: "{{AWS_REGION}}"
-        # - name: AWS_ACCESS_KEY_ID
-        #   value: "{{AWS_ACCESS_KEY_ID}}"
-        # - name: AWS_SECRET_ACCESS_KEY
-        #   value: "{{AWS_SECRET_ACCESS_KEY}}"
-        # - name: S3_PROPERTY_BUCKET
-        #   value: "{{S3_PROPERTY_BUCKET}}"
-        # - name: CORS_ORIGINS
-        #   value: "{{CORS_ORIGINS}}"
-        # - name: CORS_METHODS
-        #   value: "{{CORS_METHODS}}"
-        # - name: CORS_HEADERS
-        #   value: "{{CORS_HEADERS}}"
-        # - name: REDFIN_USER_AGENT
-        #   value: "{{REDFIN_USER_AGENT}}"
-        # - name: FIREBASE_CONFIG
-        #   value: "{{FIREBASE_CONFIG}}"
         envFrom:
         - secretRef:
-            name: realtor-rank-secret-server-envs
+            name: gredfin-secret-server-envs
       restartPolicy: Always
       imagePullSecrets:
       - name: regcred

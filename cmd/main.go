@@ -185,7 +185,13 @@ func main() {
 								Name:    "user-agent",
 								Aliases: []string{"ua", "u"},
 								Value:   os.Getenv("REDFIN_USER_AGENT"),
-								Usage:   "Redfin client User-Agent",
+								Usage:   "Redfin client User-Agent.",
+							},
+							&cli.StringFlag{
+								Name:    "firebase-config",
+								Aliases: []string{"fb"},
+								Value:   os.Getenv("FIREBASE_CONFIG"),
+								Usage:   "Firebase configuration (JSON format).",
 							},
 							&cli.IntFlag{
 								Name:    "log-level",
@@ -317,7 +323,7 @@ func serve_http(ctx *cli.Context) error {
 	s3Client := s3.NewFromConfig(awsCFG)
 
 	// firebase init
-	fbapp, err := firebase.NewApp(ctx.Context, nil, option.WithCredentialsJSON([]byte(os.Getenv("FIREBASE_CONFIG"))))
+	fbapp, err := firebase.NewApp(ctx.Context, nil, option.WithCredentialsJSON([]byte(ctx.String("firebase-config"))))
 	if err != nil {
 		return fmt.Errorf("error initializing firebase: %w", err)
 	}

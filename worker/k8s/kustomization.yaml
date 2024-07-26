@@ -1,0 +1,7 @@
+resources:
+- search-worker.yaml
+- property-worker.yaml
+secretGenerator:
+- name: realtor-rank-secret-worker-envs
+  files:
+  - ../.env

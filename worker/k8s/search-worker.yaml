@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: gredfin
+    component: search-workers
+  name: gredfin-search-workers
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gredfin
+      component: search-workers
+  template:
+    metadata:
+      labels:
+        app: gredfin
+        component: search-workers
+    spec:
+      containers:
+      - image: "{{DOCKER_REPO}}{{WORKER_IMG_TAG}}"
+        resources:
+          requests:
+            memory: "1Mi"
+            cpu: "1m"
+          limits:
+            memory: "32Mi"
+            cpu: "50m"
+        imagePullPolicy: Always
+        name: gredfin-search-workers
+        envFrom:
+        - secretRef:
+            name: realtor-rank-secret-worker-envs
+      restartPolicy: Always
+      imagePullSecrets:
+      - name: regcred
