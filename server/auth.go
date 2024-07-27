@@ -22,7 +22,8 @@ func generateAccessToken(claims authJWTClaims) (string, error) {
 	return t.SignedString([]byte(getSecretKey()))
 }
 
-// Return the default headers to use to make queries against the server
+// Return the default headers to use to make queries against the server.
+// This is a convenience function for worker clients that upload data.
 func GetDefaultServerHeaders(authToken string) http.Header {
 	h := http.Header{}
 	h.Add("Authorization", authToken)

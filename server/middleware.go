@@ -13,6 +13,8 @@ import (
 	"github.com/gorilla/handlers"
 )
 
+const FirebaseJWTHeader = "Firebase-JWT"
+
 type contextKey int
 
 var jwtCtxKey contextKey = 1
@@ -88,48 +90,52 @@ func setMaxBytesReader(mb int64) handlerAdapter {
 	}
 }
 
-func mustAuth(fbc *auth.Client) handlerAdapter {
+func bearerAuthorizer() func(*http.Request) bool {
+	return func(r *http.Request) bool {
+		var claims authJWTClaims
+		ts := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if ts == "" {
+			return false
+		}
+		kf := func(token *jwt.Token) (interface{}, error) {
+			return []byte(getSecretKey()), nil
+		}
+		token, err := jwt.ParseWithClaims(ts, &claims, kf)
+		if err != nil || !token.Valid {
+			return false
+		}
+		// FIXME: verify this actually works and then do something similar in
+		// the firebase authorizer since right now they don't have parity
+		ctx := context.WithValue(r.Context(), jwtCtxKey, token.Claims)
+		*r = *r.WithContext(ctx)
+		return true
+	}
+}
+
+// Uses Firebase-JWT header and firebase client to auth
+func firebaseAuthorizer(hname string, fbc *auth.Client) func(*http.Request) bool {
+	return func(r *http.Request) bool {
+		if _, err := fbc.VerifyIDToken(r.Context(), r.Header.Get(hname)); err != nil {
+			return false
+		}
+		return true
+	}
+}
+
+// Iterates over the supplied authorizers and if at least one passes, then the
+// next handler is called, otherwise an unauthorized response is written.
+func atLeastOneAuth(authorizers ...func(*http.Request) bool) handlerAdapter {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			// check firebase JWT, if present, use that for auth, otherwise fall
-			// back to our custom bearer token
-			if r.Header.Get("Firebase-JWT") != "" {
-				_, err := fbc.VerifyIDToken(r.Context(), r.Header.Get("Firebase-JWT"))
-				if err != nil {
-					w.WriteHeader(http.StatusUnauthorized)
-					json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad firebase token"})
-					return
+			for _, a := range authorizers {
+				if !a(r) {
+					continue
 				}
-				// Here we can retrieve the user's email and add  it to the
-				// token claims and set it on the request context, but at
-				// present this isn't necessary so it's not done.
 				next(w, r)
 				return
 			}
-
-			// no firebase token, look for and validate our custom JWT
-			var claims authJWTClaims
-			ts := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-			if ts == "" {
-				resp := DefaultJSONResponse{Error: "missing authorization header"}
-				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(resp)
-				return
-			}
-			kf := func(token *jwt.Token) (interface{}, error) {
-				return []byte(getSecretKey()), nil
-			}
-			token, err := jwt.ParseWithClaims(ts, &claims, kf)
-			if err != nil || !token.Valid {
-				// this can happen for all sorts of typical reasons (expired tokens, etc.)
-				// so nothing is logged and the user just gets a generic unauthorized message
-				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "bad token value"})
-				return
-			}
-			ctx := context.WithValue(r.Context(), jwtCtxKey, token.Claims)
-			r = r.WithContext(ctx)
-			next(w, r)
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "unauthorized"})
 		}
 	}
 }

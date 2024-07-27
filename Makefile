@@ -42,6 +42,7 @@ run-property-worker:
 
 deploy-server:
 	$(call setup_env, server/.env)
+	@$(MAKE) build-push-server
 	kustomize build --load-restrictor=LoadRestrictionsNone server/k8s | \
 	sed -e "s;{{DOCKER_REPO}};$(DOCKER_REPO);g" | \
 	sed -e "s;{{SERVER_IMG_TAG}};$(SERVER_IMG_TAG);g" | \

@@ -48,3 +48,11 @@ func pgErrorText(code string) string {
 		return ""
 	}
 }
+
+// Returns true if the supplied error is indicative of bad user submitted data.
+func isUserError(err error) bool {
+	return (isPGError(err, pgErrorIntegrityConstrainViolation) ||
+		isPGError(err, pgErrorNotNullViolation) ||
+		isPGError(err, pgErrorForeignKeyViolation) ||
+		isPGError(err, pgErrorUniqueViolation))
+}

@@ -130,7 +130,11 @@ func handlePropertyPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 
 		// create the property, ignore "already exists" error
 		err = q.CreateProperty(r.Context(), body.CreatePropertyParams)
-		if err != nil && !isPGError(err, pgErrorUniqueViolation) {
+		if err != nil {
+			if isUserError(err) {
+				writeBadRequestError(w, fmt.Errorf("bad data: %w", err))
+				return
+			}
 			writeInternalError(l, w, err)
 			return
 		}
@@ -217,6 +221,7 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 			gp, err := geom.NewPoint(geom.XY).SetCoords(body.Location.Coordinates)
 			if err != nil {
 				writeBadRequestError(w, fmt.Errorf("bad coordinates"))
+				return
 			}
 			pd.Location = gp.SetSRID(4326)
 		}
@@ -243,6 +248,10 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 		}
 		err = q.PutProperty(r.Context(), pd)
 		if err != nil {
+			if isUserError(err) {
+				writeBadRequestError(w, fmt.Errorf("bad data: %w", err))
+				return
+			}
 			writeInternalError(l, w, err)
 			return
 		}
