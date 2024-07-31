@@ -7,11 +7,11 @@ endef
 build-cli:
 	go build -o ./cli cmd/*.go
 
-build-push-server:
+build-push-cli:
 	$(call setup_env, server/.env)
 	CGO_ENABLED=0 GOOS=linux go build -o ./cli cmd/*.go
-	docker build -f Dockerfile.server -t ${SERVER_IMG_TAG} .
-	docker push ${SERVER_IMG_TAG}
+	docker build -f Dockerfile -t ${CLI_IMG_TAG} .
+	docker push ${CLI_IMG_TAG}
 
 migrate:
 	$(call setup_env, server/.env)
@@ -42,12 +42,30 @@ run-property-worker:
 
 deploy-server:
 	$(call setup_env, server/.env)
-	@$(MAKE) build-push-server
+	@$(MAKE) build-push-cli
 	kustomize build --load-restrictor=LoadRestrictionsNone server/k8s | \
 	sed -e "s;{{DOCKER_REPO}};$(DOCKER_REPO);g" | \
-	sed -e "s;{{SERVER_IMG_TAG}};$(SERVER_IMG_TAG);g" | \
+	sed -e "s;{{CLI_IMG_TAG}};$(CLI_IMG_TAG);g" | \
 	kubectl apply -f -
 	kubectl rollout restart deployment gredfin-backend
+
+deploy-search-worker:
+	$(call setup_env, worker/.env)
+	@$(MAKE) build-push-cli
+	kustomize build --load-restrictor=LoadRestrictionsNone worker/k8s/search | \
+	sed -e "s;{{DOCKER_REPO}};$(DOCKER_REPO);g" | \
+	sed -e "s;{{CLI_IMG_TAG}};$(CLI_IMG_TAG);g" | \
+	kubectl apply -f -
+	kubectl rollout restart deployment gredfin-search-worker
+
+deploy-property-worker:
+	$(call setup_env, worker/.env)
+	@$(MAKE) build-push-cli
+	kustomize build --load-restrictor=LoadRestrictionsNone worker/k8s/property | \
+	sed -e "s;{{DOCKER_REPO}};$(DOCKER_REPO);g" | \
+	sed -e "s;{{CLI_IMG_TAG}};$(CLI_IMG_TAG);g" | \
+	kubectl apply -f -
+	kubectl rollout restart deployment gredfin-property-worker
 
 backup-db:
 	$(call setup_env, server/.env)

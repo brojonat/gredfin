@@ -6,4 +6,4 @@ FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY cli .
 EXPOSE 8080
-CMD [ "./cli", "run", "http-server" ]
+CMD [ "./cli", "--help" ]

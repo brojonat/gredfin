@@ -113,6 +113,11 @@ func handlePropertyPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			}
 			return
 		}
+		if len(body.Location.Coordinates) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(DefaultJSONResponse{Error: "client didn't set location correctly"})
+			return
+		}
 		body.CreatePropertyParams.Location = geom.NewPoint(geom.XY).MustSetCoords(body.Location.Coordinates).SetSRID(4326)
 
 		// check if this url is blocklisted, return early with a 204 if so

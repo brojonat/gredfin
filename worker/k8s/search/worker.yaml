@@ -1,40 +1,31 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: gredfin-backend
-spec:
-  type: ClusterIP
-  ports:
-  - port: 80
-    targetPort: 8080
-  selector:
-    app: gredfin-backend
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: gredfin-backend
-  name: gredfin-backend
+    app: gredfin
+    component: search-worker
+  name: gredfin-search-worker
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: gredfin-backend
+      app: gredfin
+      component: search-worker
   template:
     metadata:
       labels:
-        app: gredfin-backend
+        app: gredfin
+        component: search-worker
     spec:
       containers:
       - image: "{{DOCKER_REPO}}{{CLI_IMG_TAG}}"
         imagePullPolicy: Always
-        name: gredfin-backend
+        name: gredfin-search-worker
         envFrom:
         - secretRef:
-            name: gredfin-secret-server-envs
+            name: gredfin-secret-worker-envs
         command: ["./cli"]
-        args: ["run", "http-server"]
+        args: ["run", "search-worker"]
       restartPolicy: Always
       imagePullSecrets:
       - name: regcred

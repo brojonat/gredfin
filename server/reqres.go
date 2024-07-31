@@ -19,6 +19,11 @@ type Location struct {
 	Coordinates []float64 `json:"coordinates"`
 }
 
+type CreatePropertyParams struct {
+	dbgen.CreatePropertyParams
+	Location Location `json:"location"`
+}
+
 // This needs to check for any types that contain *geom.Point fields and make
 // them serializable because it has proven to be annoyingly difficult to have
 // sqlc, pgx, and go-geom to use a serializable type location data. This should
