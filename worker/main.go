@@ -15,7 +15,9 @@ func RunWorkerFunc(
 	interval time.Duration,
 	f func(context.Context, *slog.Logger),
 ) error {
-	lastRun := time.Now() // TODO: set this in the past to trigger immediate run?
+	// TODO: set this in the past to trigger immediate run? The first run doesn't
+	// happen until after a delay.
+	lastRun := time.Now()
 	for {
 		delay := time.NewTimer(lastRun.Truncate(interval).Add(interval).Sub(lastRun))
 		select {

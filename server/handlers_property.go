@@ -136,15 +136,21 @@ func handlePropertyPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 		// create the property, ignore "already exists" error
 		err = q.CreateProperty(r.Context(), body.CreatePropertyParams)
 		if err != nil {
-			if isUserError(err) {
+			// callers will hit this route frequently with properties that already exist,
+			// so ignore the unique violation errors but return 400 for all others
+			if isPGError(err, pgErrorUniqueViolation) {
+				writeOK(w)
+				return
+			}
+			if !isPGError(err, pgErrorUniqueViolation) && isUserError(err) {
 				writeBadRequestError(w, fmt.Errorf("bad data: %w", err))
 				return
 			}
+			// unhandled/internal error
 			writeInternalError(l, w, err)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+		writeOK(w)
 	}
 }
 
@@ -260,8 +266,7 @@ func handlePropertyUpdate(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) htt
 			writeInternalError(l, w, err)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+		writeOK(w)
 	}
 }
 
@@ -289,8 +294,7 @@ func handlePropertyDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 				writeInternalError(l, w, err)
 				return
 			}
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+			writeOK(w)
 			return
 		}
 
@@ -318,8 +322,7 @@ func handlePropertyDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			writeInternalError(l, w, err)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+		writeOK(w)
 	}
 }
 

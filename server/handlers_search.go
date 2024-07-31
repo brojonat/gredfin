@@ -95,8 +95,7 @@ func handleSearchPost(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			writeInternalError(l, w, err)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+		writeOK(w)
 	}
 }
 
@@ -119,7 +118,7 @@ func handleSearchDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 				writeInternalError(l, w, err)
 				return
 			}
-			json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+			writeOK(w)
 			return
 		}
 
@@ -135,8 +134,7 @@ func handleSearchDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			writeInternalError(l, w, err)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+		writeOK(w)
 	}
 }
 
@@ -225,8 +223,7 @@ func handleSearchSetStatus(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			writeInternalError(l, w, err)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+		writeOK(w)
 	}
 }
 

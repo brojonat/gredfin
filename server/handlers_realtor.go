@@ -118,8 +118,7 @@ func handleRealtorPost(l *slog.Logger, p *pgxpool.Pool, q *dbgen.Queries) http.H
 			writeInternalError(l, w, err)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+		writeOK(w)
 	}
 
 }
@@ -143,8 +142,7 @@ func handleRealtorDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 				writeInternalError(l, w, err)
 				return
 			}
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+			writeOK(w)
 			return
 		}
 
@@ -173,7 +171,6 @@ func handleRealtorDelete(l *slog.Logger, q *dbgen.Queries) http.HandlerFunc {
 			writeInternalError(l, w, err)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(DefaultJSONResponse{Message: "ok"})
+		writeOK(w)
 	}
 }

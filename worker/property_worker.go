@@ -488,7 +488,16 @@ func createProperty(endpoint string, h http.Header, b []byte) error {
 	if res.StatusCode != http.StatusOK &&
 		res.StatusCode != http.StatusCreated &&
 		res.StatusCode != http.StatusAccepted {
-		return fmt.Errorf(res.Status)
+		b, err := io.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("error reading response body: %w", err)
+		}
+		var body server.DefaultJSONResponse
+		err = json.Unmarshal(b, &body)
+		if err != nil {
+			return fmt.Errorf("error deserializing response body: %w", err)
+		}
+		return fmt.Errorf("%s: %s", res.Status, body.Error)
 	}
 	return nil
 }
